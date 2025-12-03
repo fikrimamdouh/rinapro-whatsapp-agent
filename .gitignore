@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/*.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# WhatsApp auth
+auth/
+server/whatsapp/baileys_auth/
+
+# Local development
+.local/
+.manus/
+.replit
+.config/
+
+# Temporary files
+*.tmp
+*.temp
+zipFile.zip
+
+# Attached assets (may contain sensitive data)
+attached_assets/

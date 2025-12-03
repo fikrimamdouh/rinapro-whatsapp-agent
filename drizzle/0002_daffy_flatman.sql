@@ -1,0 +1,21 @@
+CREATE TABLE `bonds` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`bondNumber` varchar(100) NOT NULL,
+	`amount` int NOT NULL,
+	`issueDate` timestamp NOT NULL,
+	`dueDate` timestamp NOT NULL,
+	`creditorName` varchar(255) NOT NULL,
+	`creditorId` varchar(50),
+	`debtorName` varchar(255) NOT NULL,
+	`debtorId` varchar(50),
+	`customerId` int,
+	`reason` text,
+	`status` enum('pending','paid','overdue','cancelled') NOT NULL DEFAULT 'pending',
+	`pdfUrl` text,
+	`extractedData` text,
+	`notes` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `bonds_id` PRIMARY KEY(`id`),
+	CONSTRAINT `bonds_bondNumber_unique` UNIQUE(`bondNumber`)
+);

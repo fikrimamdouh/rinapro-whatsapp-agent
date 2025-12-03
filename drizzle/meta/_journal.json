@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1763883832068,
+      "tag": "0000_icy_captain_britain",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1763883923402,
+      "tag": "0001_plain_wendell_vaughn",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1763890837334,
+      "tag": "0002_daffy_flatman",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1763936217941,
+      "tag": "0003_fast_iceman",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1763996923862,
+      "tag": "0004_dark_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1764057594256,
+      "tag": "0005_conscious_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1764088283727,
+      "tag": "0006_unusual_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1764104819787,
+      "tag": "0007_tired_hiroim",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1764295411752,
+      "tag": "0008_confused_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1764299237158,
+      "tag": "0009_unique_madripoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1764304642778,
+      "tag": "0010_wandering_stature",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1764425483064,
+      "tag": "0011_safe_scarlet_witch",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1764426127626,
+      "tag": "0012_sticky_marvel_zombies",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1764427107903,
+      "tag": "0013_moaning_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1764567314807,
+      "tag": "0014_last_dazzler",
+      "breakpoints": true
+    }
+  ]
+}

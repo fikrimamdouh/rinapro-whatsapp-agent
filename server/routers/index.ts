@@ -1,0 +1,37 @@
+/**
+ * Main Router
+ * Combines all TRPC routers into a single appRouter
+ */
+
+import { router } from "../_core/trpc";
+import { systemRouter } from "./system";
+import { agentRouter } from "./agent";
+import { whatsappRouter } from "./whatsapp";
+import { customersRouter } from "./customers";
+import { invoicesRouter } from "./invoices";
+import { suppliersRouter } from "./suppliers";
+import { installmentsRouter } from "./installments";
+import { settingsRouter } from "./settings";
+import { authRouter } from "./auth";
+import { balancesRouter } from "./balances";
+import { accountsRouter } from "./accounts";
+import { customerBalancesRouter } from "./customerBalances";
+import { accountBalancesRouter } from "./accountBalances";
+
+export const appRouter = router({
+  system: systemRouter,
+  agent: agentRouter,
+  whatsapp: whatsappRouter,
+  customers: customersRouter,
+  invoices: invoicesRouter,
+  suppliers: suppliersRouter,
+  installments: installmentsRouter,
+  settings: settingsRouter,
+  auth: authRouter,
+  balances: balancesRouter,
+  accounts: accountsRouter,
+  customerBalances: customerBalancesRouter,
+  accountBalances: accountBalancesRouter,
+});
+
+export type AppRouter = typeof appRouter;
