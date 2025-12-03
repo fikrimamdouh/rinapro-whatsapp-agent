@@ -23,6 +23,10 @@ import Purchases from "./pages/Purchases";
 import Maintenance from "./pages/Maintenance";
 import Logistics from "./pages/Logistics";
 import Cashbox from "./pages/Cashbox";
+import TrialBalance from "./pages/TrialBalance";
+import Fleet from "./pages/Fleet";
+import Finance from "./pages/Finance";
+import Analytics from "./pages/Analytics";
 
 function Router() {
   return (
@@ -37,6 +41,7 @@ function Router() {
       <Route path={"/accounts"} component={Accounts} />
       <Route path={"/account-balances"} component={AccountBalances} />
       <Route path={"/chart-of-accounts"} component={ChartOfAccounts} />
+      <Route path={"/trial-balance"} component={TrialBalance} />
       <Route path={"/inventory"} component={Inventory} />
       <Route path={"/reports"} component={Reports} />
       <Route path={"/sales"} component={Sales} />
@@ -44,6 +49,9 @@ function Router() {
       <Route path={"/maintenance"} component={Maintenance} />
       <Route path={"/logistics"} component={Logistics} />
       <Route path={"/cashbox"} component={Cashbox} />
+      <Route path={"/fleet"} component={Fleet} />
+      <Route path={"/finance"} component={Finance} />
+      <Route path={"/analytics"} component={Analytics} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/agent"} component={AgentPage} />
       <Route path={"/404"} component={NotFound} />

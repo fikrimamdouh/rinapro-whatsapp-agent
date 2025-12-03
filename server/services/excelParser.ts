@@ -15,12 +15,48 @@ export interface ParseResult {
   headers: string[];
   totalRows: number;
   errors: string[];
+  detectedType?: string;
 }
 
 /**
  * Normalize Arabic/English headers to standard field names
  */
 const HEADER_MAPPINGS: Record<string, Record<string, string>> = {
+  // Trial Balance (ميزان مراجعة)
+  trialBalance: {
+    "العميل": "customerName",
+    "رقم الحساب": "accountNumber",
+    "ما قبله": "openingBalance",
+    "مدين": "debit",
+    "دائن": "credit",
+    "الرصيد": "balance",
+    "الشيكات": "checks",
+    "customer": "customerName",
+    "account": "accountNumber",
+    "opening": "openingBalance",
+    "debit": "debit",
+    "credit": "credit",
+    "balance": "balance",
+  },
+  // Chart of Accounts (أرصدة الحسابات)
+  chartOfAccounts: {
+    "رقم الحساب": "accountNumber",
+    "الحساب": "accountName",
+    "اول المدة مدين": "openingDebit",
+    "اول المدة دائن": "openingCredit",
+    "الحركة مدين": "movementDebit",
+    "الحركة دائن": "movementCredit",
+    "الرصيد مدين": "balanceDebit",
+    "الرصيد دائن": "balanceCredit",
+    "account number": "accountNumber",
+    "account name": "accountName",
+    "opening debit": "openingDebit",
+    "opening credit": "openingCredit",
+    "movement debit": "movementDebit",
+    "movement credit": "movementCredit",
+    "balance debit": "balanceDebit",
+    "balance credit": "balanceCredit",
+  },
   sales: {
     // Arabic
     "الصنف": "itemName",
@@ -97,6 +133,44 @@ const HEADER_MAPPINGS: Record<string, Record<string, string>> = {
     "notes": "notes",
   },
 };
+
+/**
+ * Auto-detect file type based on headers
+ */
+function detectFileType(headers: string[]): string {
+  const headerStr = headers.join('|').toLowerCase();
+  
+  // Trial Balance detection
+  if (headerStr.includes('ميزان مراجعه') || 
+      (headerStr.includes('مدين') && headerStr.includes('دائن') && headerStr.includes('الرصيد'))) {
+    return 'trialBalance';
+  }
+  
+  // Chart of Accounts detection
+  if (headerStr.includes('ارصدة الحسابات') || 
+      (headerStr.includes('اول المدة') && headerStr.includes('الحركة'))) {
+    return 'chartOfAccounts';
+  }
+  
+  // Sales detection
+  if (headerStr.includes('الصنف') || headerStr.includes('المنتج') || 
+      headerStr.includes('item') || headerStr.includes('product')) {
+    return 'sales';
+  }
+  
+  // Inventory detection
+  if (headerStr.includes('المخزون') || headerStr.includes('stock') || 
+      headerStr.includes('الكود') || headerStr.includes('sku')) {
+    return 'inventory';
+  }
+  
+  // Cashbox detection
+  if (headerStr.includes('الصندوق') || headerStr.includes('cashbox')) {
+    return 'cashbox';
+  }
+  
+  return 'unknown';
+}
 
 /**
  * Detect and normalize headers
@@ -189,12 +263,43 @@ export function parseExcelFile(
       };
     }
     
-    // Extract headers (first row)
-    const rawHeaders = rawData[0].map((h: any) => String(h || "").trim());
-    const headers = normalizeHeaders(rawHeaders, module);
+    // Find header row (skip title rows)
+    let headerRowIndex = 0;
+    let rawHeaders: string[] = [];
     
-    // Extract data rows (skip header)
-    const dataRows = rawData.slice(1);
+    for (let i = 0; i < Math.min(5, rawData.length); i++) {
+      const row = rawData[i];
+      const nonEmptyCells = row.filter((cell: any) => cell !== null && cell !== undefined && cell !== "").length;
+      
+      // Header row should have multiple non-empty cells
+      if (nonEmptyCells >= 3) {
+        rawHeaders = row.map((h: any) => String(h || "").trim());
+        headerRowIndex = i;
+        break;
+      }
+    }
+    
+    if (rawHeaders.length === 0) {
+      return {
+        success: false,
+        data: [],
+        headers: [],
+        totalRows: 0,
+        errors: ["لم يتم العثور على صف العناوين"],
+      };
+    }
+    
+    // Auto-detect file type if module is 'auto'
+    const detectedModule = module === 'auto' ? detectFileType(rawHeaders) : module;
+    
+    if (detectedModule === 'unknown') {
+      errors.push(`⚠️ لم يتم التعرف على نوع الملف تلقائياً. العناوين: ${rawHeaders.join(', ')}`);
+    }
+    
+    const headers = normalizeHeaders(rawHeaders, detectedModule);
+    
+    // Extract data rows (skip header and any rows before it)
+    const dataRows = rawData.slice(headerRowIndex + 1);
     
     // Remove empty rows
     const cleanedRows = removeEmptyRows(
@@ -210,9 +315,9 @@ export function parseExcelFile(
     // Process rows based on module
     const processedData = cleanedRows.map((row, index) => {
       try {
-        return processRow(row, module);
+        return processRow(row, detectedModule);
       } catch (error: any) {
-        errors.push(`خطأ في الصف ${index + 2}: ${error.message}`);
+        errors.push(`خطأ في الصف ${index + headerRowIndex + 2}: ${error.message}`);
         return null;
       }
     }).filter(Boolean) as ParsedRow[];
@@ -223,6 +328,7 @@ export function parseExcelFile(
       headers,
       totalRows: cleanedRows.length,
       errors,
+      detectedType: detectedModule,
     };
   } catch (error: any) {
     return {
@@ -240,6 +346,29 @@ export function parseExcelFile(
  */
 function processRow(row: any, module: string): ParsedRow {
   switch (module) {
+    case "trialBalance":
+      return {
+        accountNumber: row.accountNumber || "",
+        customerName: row.customerName || "",
+        openingBalance: parseNumber(row.openingBalance),
+        debit: parseNumber(row.debit),
+        credit: parseNumber(row.credit),
+        balance: parseNumber(row.balance),
+        checks: parseNumber(row.checks),
+      };
+      
+    case "chartOfAccounts":
+      return {
+        accountNumber: row.accountNumber || "",
+        accountName: row.accountName || "",
+        openingDebit: parseNumber(row.openingDebit),
+        openingCredit: parseNumber(row.openingCredit),
+        movementDebit: parseNumber(row.movementDebit),
+        movementCredit: parseNumber(row.movementCredit),
+        balanceDebit: parseNumber(row.balanceDebit),
+        balanceCredit: parseNumber(row.balanceCredit),
+      };
+    
     case "sales":
       return {
         itemName: row.itemName || "",

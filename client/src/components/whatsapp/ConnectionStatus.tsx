@@ -10,7 +10,8 @@ import {
   QrCode, 
   CheckCircle2, 
   XCircle,
-  Loader2 
+  Loader2,
+  LogOut
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,6 +56,23 @@ export function ConnectionStatus() {
     },
   });
 
+  // Mutation لتسجيل الخروج (إلغاء الجلسة)
+  const logoutMutation = trpc.whatsapp.logout.useMutation({
+    onSuccess: () => {
+      toast.success("تم تسجيل الخروج وإلغاء الجلسة بنجاح");
+      setQrCode("");
+      setIsConnecting(false);
+      refetchStatus();
+      // إعادة الاتصال تلقائياً للحصول على QR جديد
+      setTimeout(() => {
+        connectMutation.mutate();
+      }, 1000);
+    },
+    onError: (error) => {
+      toast.error(`فشل تسجيل الخروج: ${error.message}`);
+    },
+  });
+
   // تحديث QR Code عند تغيير الحالة
   useEffect(() => {
     if (status?.qrCode) {
@@ -75,8 +93,14 @@ export function ConnectionStatus() {
     disconnectMutation.mutate();
   };
 
+  const handleLogout = () => {
+    if (confirm("هل أنت متأكد من تسجيل الخروج؟ سيتم إلغاء الجلسة الحالية وإنشاء QR Code جديد.")) {
+      logoutMutation.mutate();
+    }
+  };
+
   const isConnected = status?.connected || false;
-  const isLoading = connectMutation.isPending || disconnectMutation.isPending;
+  const isLoading = connectMutation.isPending || disconnectMutation.isPending || logoutMutation.isPending;
 
   return (
     <Card className="p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-green-500/20">
@@ -183,25 +207,47 @@ export function ConnectionStatus() {
               )}
             </Button>
           ) : (
-            <Button
-              onClick={handleDisconnect}
-              disabled={isLoading}
-              variant="destructive"
-              className="flex-1"
-              size="lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  جاري قطع الاتصال...
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-5 h-5 mr-2" />
-                  قطع الاتصال
-                </>
-              )}
-            </Button>
+            <>
+              <Button
+                onClick={handleDisconnect}
+                disabled={isLoading}
+                variant="destructive"
+                className="flex-1"
+                size="lg"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    جاري قطع الاتصال...
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-5 h-5 mr-2" />
+                    قطع الاتصال
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                onClick={handleLogout}
+                disabled={isLoading}
+                variant="outline"
+                className="flex-1 border-orange-500/30 hover:bg-orange-500/10 text-orange-400"
+                size="lg"
+              >
+                {logoutMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    جاري تسجيل الخروج...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-5 h-5 mr-2" />
+                    تسجيل الخروج
+                  </>
+                )}
+              </Button>
+            </>
           )}
           
           <Button

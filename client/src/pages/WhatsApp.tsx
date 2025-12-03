@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ConnectionStatus } from "@/components/whatsapp/ConnectionStatus";
 import { GroupsManager } from "@/components/whatsapp/GroupsManager";
 import { QuickActions } from "@/components/whatsapp/QuickActions";
@@ -7,6 +8,7 @@ import { LiveMonitoring } from "@/components/whatsapp/LiveMonitoring";
 import { GeneralSettings } from "@/components/whatsapp/GeneralSettings";
 import { SendMessage } from "@/components/whatsapp/SendMessage";
 import { BackToHome } from "@/components/BackToHome";
+import { trpc } from "@/lib/trpc";
 import { 
   Wifi, 
   Users, 

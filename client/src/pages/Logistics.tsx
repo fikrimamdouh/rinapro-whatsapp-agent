@@ -1,7 +1,7 @@
 import { BackToHome } from "@/components/BackToHome";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Truck, ArrowRight } from "lucide-react";
+import { Truck, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { UniversalUploader } from "@/components/UniversalUploader";
 

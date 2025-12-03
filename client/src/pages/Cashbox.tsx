@@ -18,6 +18,14 @@ export default function Cashbox() {
             <div className="flex justify-center">
               <div className="p-4 rounded-full neon-green-bg">
                 <Wallet className="h-12 w-12 neon-green" />
+              </div>
+            </div>
+            <h1 className="text-4xl font-bold neon-green">
+              الصندوق
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              إدارة الصندوق والمدفوعات النقدية
+            </p>
           </div>
 
           {/* Upload Section */}
@@ -36,26 +44,18 @@ export default function Cashbox() {
           {/* Features Card */}
           <Card className="glass-strong">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
-                قيد التطوير
-              </CardTitle>
+              <CardTitle>الوظائف المتاحة</CardTitle>
               <CardDescription>
-                هذه الصفحة قيد التطوير حالياً
+                يمكنك الآن رفع وتحليل بيانات الصندوق
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                سيتم إضافة الوظائف التالية قريباً:
-              </p>
               <ul className="list-disc list-inside space-y-2 text-muted-foreground mr-4">
-                <li>تسجيل المقبوضات النقدية</li>
-                <li>تسجيل المدفوعات النقدية</li>
-                <li>رصيد الصندوق الحالي</li>
-                <li>حركة الصندوق اليومية</li>
-                <li>تقارير الإيرادات والمصروفات</li>
-                <li>مطابقة الصندوق</li>
-                <li>إدارة عدة صناديق</li>
+                <li>رفع ملفات Excel للصندوق</li>
+                <li>تحليل تلقائي للبيانات</li>
+                <li>معاينة البيانات قبل الحفظ</li>
+                <li>إرسال تقارير عبر WhatsApp</li>
+                <li>تحديث لوحة التحكم تلقائياً</li>
               </ul>
               
               <div className="pt-4">
@@ -65,3 +65,11 @@ export default function Cashbox() {
                     العودة إلى لوحة التحكم
                   </Button>
                 </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

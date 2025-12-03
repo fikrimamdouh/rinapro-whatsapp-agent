@@ -14,6 +14,7 @@ import {
   Loader2,
   TrendingUp,
   TrendingDown,
+  RefreshCw,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -46,19 +47,23 @@ export default function AccountBalances() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
-  const { data: accountBalances, isLoading } = trpc.accountBalances.list.useQuery();
-  const { data: searchResults } = trpc.accountBalances.search.useQuery(
-    { query: searchQuery },
-    { enabled: searchQuery.length > 0 }
-  );
+  const { data: accountBalances, isLoading, refetch } = trpc.accountBalances.getAll.useQuery();
+  
+  // البحث محلياً
+  const searchResults = searchQuery.length > 0 
+    ? accountBalances?.filter(a => 
+        a.accountName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.accountCode?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : null;
 
-  const importMutation = trpc.accountBalances.importFromExcel.useMutation({
-    onSuccess: (result) => {
-      toast.success(`تم استيراد ${result.successCount} من ${result.totalCount} حساب`);
-      utils.accountBalances.list.invalidate();
+  const uploadBatchMutation = trpc.accountBalances.uploadBatch.useMutation({
+    onSuccess: () => {
+      // سيتم استدعاء refetch بعد كل الـ batches
     },
     onError: (error) => {
-      toast.error(`فشل الاستيراد: ${error.message}`);
+      toast.error(`فشل الرفع: ${error.message}`);
+      setIsImporting(false);
     },
   });
 
@@ -66,7 +71,7 @@ export default function AccountBalances() {
     onSuccess: () => {
       toast.success("تم حذف جميع البيانات بنجاح");
       setIsDeleteAllDialogOpen(false);
-      utils.accountBalances.list.invalidate();
+      refetch();
     },
     onError: (error) => {
       toast.error(`فشل الحذف: ${error.message}`);
@@ -99,7 +104,72 @@ export default function AccountBalances() {
         toast.error("الملف لا يحتوي على بيانات صالحة");
         return;
       }
-      await importMutation.mutateAsync({ data });
+      
+      // Clean data - add default values for missing fields and filter invalid rows
+      const cleanedData = data
+        .filter(item => {
+          // Skip rows with invalid data (headers, totals, etc.)
+          const code = String(item.accountCode || '').trim();
+          const name = String(item.accountName || '').trim();
+          
+          // Skip if both are empty
+          if (!code && !name) return false;
+          
+          // Skip if it's a header row (contains keywords)
+          const combined = (code + name).toLowerCase();
+          if (combined.includes('ارصدة') || 
+              combined.includes('الحسابات') ||
+              combined.includes('اجمالي') ||
+              combined.includes('المجموع') ||
+              combined.includes('total') ||
+              combined.includes('رقم الحساب') && combined.includes('الحساب')) {
+            return false;
+          }
+          
+          return true;
+        })
+        .map(item => ({
+          accountCode: item.accountCode || '',
+          accountName: item.accountName || '',
+          openingDebitBalance: item.openingDebitBalance || 0,
+          openingCreditBalance: item.openingCreditBalance || 0,
+          debitMovement: item.debitMovement || 0,
+          creditMovement: item.creditMovement || 0,
+          debitBalance: item.debitBalance || 0,
+          creditBalance: item.creditBalance || 0,
+        }));
+      
+      // Split into batches of 50 rows (smaller for stability)
+      const BATCH_SIZE = 50;
+      const batches = [];
+      for (let i = 0; i < cleanedData.length; i += BATCH_SIZE) {
+        batches.push(cleanedData.slice(i, i + BATCH_SIZE));
+      }
+      
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      
+      for (let i = 0; i < batches.length; i++) {
+        toast.loading(`جاري الاستيراد... ${i + 1}/${batches.length}`, { id: 'import-progress' });
+        
+        try {
+          const result = await uploadBatchMutation.mutateAsync({ 
+            data: batches[i],
+            isFirstBatch: i === 0,
+            isLastBatch: i === batches.length - 1
+          });
+          
+          totalSuccess += result.count || 0;
+        } catch (error: any) {
+          totalFailed += batches[i].length;
+        }
+      }
+      
+      toast.dismiss('import-progress');
+      toast.success(`تم استيراد ${totalSuccess} سجل بنجاح`);
+      
+      // تحديث البيانات
+      await refetch();
     } catch (error) {
       console.error("Import error:", error);
       toast.error("فشل قراءة الملف");
@@ -179,6 +249,20 @@ export default function AccountBalances() {
               <Upload className="ml-2 h-4 w-4" />
             )}
             رفع ملف Excel
+          </Button>
+
+          <Button
+            onClick={async () => {
+              toast.info("جاري تحديث البيانات...");
+              await refetch();
+              toast.success("تم تحديث البيانات بنجاح");
+            }}
+            disabled={isLoading}
+            variant="outline"
+            className="border-green-500/30 hover:bg-green-500/10"
+          >
+            <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            تحديث البيانات
           </Button>
 
           <Button

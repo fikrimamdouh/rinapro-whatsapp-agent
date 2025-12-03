@@ -15,35 +15,144 @@ import { trpc } from "@/lib/trpc";
 
 export function QuickActions() {
   const sendMessageMutation = trpc.whatsapp.sendMessage.useMutation();
+  
+  // جلب البيانات
+  const { data: customerBalances } = trpc.customerBalances.getAll.useQuery();
+  const { data: accountBalances } = trpc.accountBalances.getAll.useQuery();
 
-  const sendToGroup = async (command: string) => {
+  const sendToGroup = async (message: string) => {
     try {
-      toast.loading("جاري إرسال الأمر...");
+      toast.loading("جاري إرسال التقرير...");
       await sendMessageMutation.mutateAsync({
         to: "group",
-        message: command,
+        message: message,
       });
-      toast.success("✅ تم إرسال الأمر للجروب");
+      toast.success("✅ تم إرسال التقرير للجروب");
     } catch (error: any) {
       toast.error(`❌ خطأ: ${error.message}`);
     }
+  };
+
+  // تقرير يومي
+  const sendDailyReport = () => {
+    const totalCustomers = customerBalances?.length || 0;
+    const totalDebit = customerBalances?.reduce((sum, c) => sum + (c.debit || 0), 0) || 0;
+    const totalCredit = customerBalances?.reduce((sum, c) => sum + (c.credit || 0), 0) || 0;
+    const totalBalance = customerBalances?.reduce((sum, c) => sum + (c.currentBalance || 0), 0) || 0;
+    
+    const message = `📊 *التقرير اليومي*\n\n` +
+      `📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}\n\n` +
+      `👥 إجمالي العملاء: ${totalCustomers}\n` +
+      `💰 إجمالي المدين: ${(totalDebit / 100).toFixed(2)} ر.س\n` +
+      `💳 إجمالي الدائن: ${(totalCredit / 100).toFixed(2)} ر.س\n` +
+      `📈 الرصيد الإجمالي: ${(totalBalance / 100).toFixed(2)} ر.س\n\n` +
+      `_تم إنشاء التقرير تلقائياً من نظام RinaPro_`;
+    
+    sendToGroup(message);
+  };
+
+  // تقرير العملاء المدينين
+  const sendDebtorsReport = () => {
+    const debtors = customerBalances?.filter(c => (c.currentBalance || 0) > 0)
+      .sort((a, b) => (b.currentBalance || 0) - (a.currentBalance || 0))
+      .slice(0, 10) || [];
+    
+    let message = `📋 *أكبر 10 عملاء مدينين*\n\n`;
+    debtors.forEach((c, i) => {
+      message += `${i + 1}. ${c.customerName}\n`;
+      message += `   الرصيد: ${((c.currentBalance || 0) / 100).toFixed(2)} ر.س\n\n`;
+    });
+    message += `_إجمالي: ${debtors.length} عميل_`;
+    
+    sendToGroup(message);
+  };
+
+  // تقرير الأرصدة الصفرية
+  const sendZeroBalanceReport = () => {
+    const zeroBalance = customerBalances?.filter(c => Math.abs(c.currentBalance || 0) < 100) || [];
+    
+    const message = `✅ *العملاء برصيد صفر*\n\n` +
+      `عدد العملاء: ${zeroBalance.length}\n\n` +
+      `_هؤلاء العملاء ليس لديهم مديونيات أو دائنية_`;
+    
+    sendToGroup(message);
+  };
+
+  // تقرير البنوك
+  const sendBanksReport = () => {
+    const banks = accountBalances?.filter(a => a.accountCode.startsWith('101020')) || [];
+    const totalBankBalance = banks.reduce((sum, a) => sum + ((a.debitBalance || 0) - (a.creditBalance || 0)), 0);
+    
+    let message = `🏦 *تقرير البنوك*\n\n`;
+    banks.forEach(bank => {
+      const balance = (bank.debitBalance || 0) - (bank.creditBalance || 0);
+      message += `• ${bank.accountName}\n`;
+      message += `  الرصيد: ${(balance / 100).toFixed(2)} ر.س\n\n`;
+    });
+    message += `💰 الإجمالي: ${(totalBankBalance / 100).toFixed(2)} ر.س`;
+    
+    sendToGroup(message);
+  };
+
+  // تقرير الموردين
+  const sendSuppliersReport = () => {
+    const suppliers = accountBalances?.filter(a => a.accountCode.startsWith('201')) || [];
+    const totalSupplierBalance = suppliers.reduce((sum, a) => sum + ((a.debitBalance || 0) - (a.creditBalance || 0)), 0);
+    
+    let message = `📦 *تقرير الموردين*\n\n`;
+    message += `عدد الموردين: ${suppliers.length}\n`;
+    message += `الرصيد الإجمالي: ${(totalSupplierBalance / 100).toFixed(2)} ر.س\n\n`;
+    
+    const top5 = suppliers.slice(0, 5);
+    message += `*أكبر 5 موردين:*\n`;
+    top5.forEach((s, i) => {
+      const balance = (s.debitBalance || 0) - (s.creditBalance || 0);
+      message += `${i + 1}. ${s.accountName}\n`;
+      message += `   ${(balance / 100).toFixed(2)} ر.س\n\n`;
+    });
+    
+    sendToGroup(message);
   };
   const actions = [
     {
       id: "daily-report",
       title: "تقرير يومي",
-      description: "إرسال تقرير المبيعات اليومي",
+      description: "إحصائيات العملاء والأرصدة",
       icon: FileText,
       color: "blue",
-      action: () => sendToGroup("تقرير يومي"),
+      action: sendDailyReport,
     },
     {
-      id: "debt-reminders",
-      title: "تذكير المديونيات",
-      description: "إرسال تذكير جماعي للعملاء",
-      icon: Bell,
-      color: "orange",
-      action: () => sendToGroup("تذكير المديونيات"),
+      id: "debtors-report",
+      title: "أكبر المدينين",
+      description: "أكبر 10 عملاء مدينين",
+      icon: AlertCircle,
+      color: "red",
+      action: sendDebtorsReport,
+    },
+    {
+      id: "zero-balance",
+      title: "أرصدة صفرية",
+      description: "العملاء برصيد صفر",
+      icon: Users,
+      color: "green",
+      action: sendZeroBalanceReport,
+    },
+    {
+      id: "banks-report",
+      title: "تقرير البنوك",
+      description: "أرصدة جميع البنوك",
+      icon: DollarSign,
+      color: "yellow",
+      action: sendBanksReport,
+    },
+    {
+      id: "suppliers-report",
+      title: "تقرير الموردين",
+      description: "أرصدة الموردين",
+      icon: Package,
+      color: "purple",
+      action: sendSuppliersReport,
     },
     {
       id: "customer-balance",
@@ -51,7 +160,11 @@ export function QuickActions() {
       description: "عرض جميع أرصدة العملاء",
       icon: Users,
       color: "green",
-      action: () => sendToGroup("أرصدة العملاء"),
+      action: () => {
+        const total = customerBalances?.length || 0;
+        const message = `👥 *أرصدة العملاء*\n\nإجمالي العملاء: ${total}\n\nللاطلاع على التفاصيل، قم بزيارة صفحة العملاء في النظام.`;
+        sendToGroup(message);
+      },
     },
     {
       id: "sales-summary",
@@ -59,7 +172,7 @@ export function QuickActions() {
       description: "ملخص مبيعات الأسبوع",
       icon: TrendingUp,
       color: "purple",
-      action: () => sendToGroup("ملخص المبيعات"),
+      action: () => sendToGroup("📊 *ملخص المبيعات*\n\nسيتم إضافة هذا التقرير قريباً عند ربط بيانات المبيعات."),
     },
     {
       id: "inventory-alert",
@@ -67,23 +180,7 @@ export function QuickActions() {
       description: "الأصناف القريبة من النفاد",
       icon: Package,
       color: "red",
-      action: () => sendToGroup("تنبيه المخزون"),
-    },
-    {
-      id: "collection-status",
-      title: "حالة التحصيل",
-      description: "متابعة فريق التحصيل",
-      icon: DollarSign,
-      color: "yellow",
-      action: () => sendToGroup("حالة التحصيل"),
-    },
-    {
-      id: "overdue-installments",
-      title: "أقساط متأخرة",
-      description: "قائمة الأقساط المتأخرة",
-      icon: AlertCircle,
-      color: "pink",
-      action: () => sendToGroup("أقساط متأخرة"),
+      action: () => sendToGroup("📦 *تنبيه المخزون*\n\nسيتم إضافة هذا التقرير قريباً عند ربط بيانات المخزون."),
     },
   ];
 

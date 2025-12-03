@@ -16,49 +16,79 @@ export const accountBalancesRouter = router({
   importFromExcel: publicProcedure
     .input(
       z.object({
-        data: z.array(
-          z.object({
-            accountCode: z.union([z.string(), z.number()]).transform(v => String(v)),
-            accountName: z.string().optional(),
-            openingDebitBalance: z.number().optional().default(0),
-            openingCreditBalance: z.number().optional().default(0),
-            debitMovement: z.number().optional().default(0),
-            creditMovement: z.number().optional().default(0),
-            debitBalance: z.number().optional().default(0),
-            creditBalance: z.number().optional().default(0),
-          })
-        ),
+        data: z.array(z.any()).default([]),
+        isFirstBatch: z.boolean().default(true),
+      })
+    )
+    .output(
+      z.object({
+        success: z.boolean(),
+        successCount: z.number(),
+        totalCount: z.number(),
       })
     )
     .mutation(async ({ input }) => {
+      console.log('📥 AccountBalances Import - Records:', input.data.length, 'First batch:', input.isFirstBatch);
+      
+      const data = input.data;
       let successCount = 0;
-      const totalCount = input.data.length;
-
-      await db.deleteAllAccountBalances();
-
-      for (const item of input.data) {
-        try {
-          if (!item.accountCode && !item.accountName) continue;
-          
-          const toHalala = (val: number) => Math.round((val || 0) * 100);
-          
-          await db.createAccountBalance({
-            accountCode: String(item.accountCode || ""),
-            accountName: item.accountName || String(item.accountCode || ""),
-            openingDebitBalance: toHalala(item.openingDebitBalance || 0),
-            openingCreditBalance: toHalala(item.openingCreditBalance || 0),
-            debitMovement: toHalala(item.debitMovement || 0),
-            creditMovement: toHalala(item.creditMovement || 0),
-            debitBalance: toHalala(item.debitBalance || 0),
-            creditBalance: toHalala(item.creditBalance || 0),
-          });
-          successCount++;
-        } catch (error) {
-          console.error("Error importing account balance:", error);
-        }
+      const totalCount = data.length;
+      
+      if (totalCount === 0) {
+        return {
+          success: false,
+          successCount: 0,
+          totalCount: 0,
+        };
       }
 
-      return { successCount, totalCount };
+      // Only delete all on first batch if explicitly requested
+      // Now using INSERT OR REPLACE, so no need to delete
+      // Records will be updated automatically based on accountCode
+      if (input.isFirstBatch) {
+        console.log('🔄 Updating existing records...');
+        // No deletion - will update or insert based on accountCode
+      }
+
+      for (const [index, item] of data.entries()) {
+          try {
+            const accountCode = String(item.accountCode || '').trim();
+            const accountName = String(item.accountName || accountCode || '').trim();
+            
+            if (!accountCode && !accountName) {
+              console.log(`⏭️ Skip empty row ${index + 1}`);
+              continue;
+            }
+            
+            const toHalala = (val: any) => {
+              const num = Number(val) || 0;
+              return Math.round(num * 100);
+            };
+            
+            await db.createAccountBalance({
+              accountCode,
+              accountName,
+              openingDebitBalance: toHalala(item.openingDebitBalance),
+              openingCreditBalance: toHalala(item.openingCreditBalance),
+              debitMovement: toHalala(item.debitMovement),
+              creditMovement: toHalala(item.creditMovement),
+              debitBalance: toHalala(item.debitBalance),
+              creditBalance: toHalala(item.creditBalance),
+            });
+            
+            successCount++;
+          } catch (error: any) {
+            console.error(`❌ Row ${index + 1}:`, error.message);
+          }
+        }
+
+      console.log(`✅ Imported ${successCount}/${totalCount}`);
+      
+      return { 
+        success: true,
+        successCount, 
+        totalCount 
+      };
     }),
 
   deleteAll: publicProcedure.mutation(async () => {

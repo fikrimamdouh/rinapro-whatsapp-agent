@@ -14,6 +14,8 @@ import {
   Loader2,
   TrendingUp,
   TrendingDown,
+  Send,
+  RefreshCw,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -44,22 +46,29 @@ export default function CustomerBalances() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [filterType, setFilterType] = useState<string>("all");
+  const [minBalance, setMinBalance] = useState<string>("");
+  const [maxBalance, setMaxBalance] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
-  const { data: customerBalances, isLoading } = trpc.customerBalances.list.useQuery();
-  const { data: searchResults } = trpc.customerBalances.search.useQuery(
-    { query: searchQuery },
-    { enabled: searchQuery.length > 0 }
-  );
+  const { data: customerBalances, isLoading, refetch } = trpc.customerBalances.getAll.useQuery();
+  
+  // البحث محلياً
+  const searchResults = searchQuery.length > 0 
+    ? customerBalances?.filter(c => 
+        c.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : null;
 
-  const importMutation = trpc.customerBalances.importFromExcel.useMutation({
-    onSuccess: (result) => {
-      toast.success(`تم استيراد ${result.successCount} من ${result.totalCount} سجل`);
-      utils.customerBalances.list.invalidate();
+  const uploadBatchMutation = trpc.customerBalances.uploadBatch.useMutation({
+    onSuccess: () => {
+      // سيتم استدعاء refetch بعد كل الـ batches
     },
     onError: (error) => {
-      toast.error(`فشل الاستيراد: ${error.message}`);
+      toast.error(`فشل الرفع: ${error.message}`);
+      setIsImporting(false);
     },
   });
 
@@ -67,7 +76,7 @@ export default function CustomerBalances() {
     onSuccess: () => {
       toast.success("تم حذف جميع البيانات بنجاح");
       setIsDeleteAllDialogOpen(false);
-      utils.customerBalances.list.invalidate();
+      refetch();
     },
     onError: (error) => {
       toast.error(`فشل الحذف: ${error.message}`);
@@ -85,6 +94,8 @@ export default function CustomerBalances() {
 
     setIsImporting(true);
     try {
+      console.log('📁 Reading file:', file.name);
+      
       const data = await parseExcelFile<{
         customerCode: string | number;
         customerName?: string;
@@ -94,14 +105,92 @@ export default function CustomerBalances() {
         currentBalance?: number;
       }>(file, CUSTOMER_BALANCE_COLUMNS, { headerRowIndex: 2 });
       
-      if (data.length === 0) {
+      console.log('📊 Parsed data:', data.length, 'rows');
+      console.log('📋 Sample:', JSON.stringify(data.slice(0, 2), null, 2));
+      
+      if (!data || data.length === 0) {
         toast.error("الملف لا يحتوي على بيانات صالحة");
         return;
       }
-      await importMutation.mutateAsync({ data });
-    } catch (error) {
-      console.error("Import error:", error);
-      toast.error("فشل قراءة الملف");
+      
+      // Clean data - add default values for missing fields and filter invalid rows
+      const cleanedData = data
+        .filter(item => {
+          // Skip rows with invalid data (headers, totals, etc.)
+          const code = String(item.customerCode || '').trim();
+          const name = String(item.customerName || '').trim();
+          
+          // Skip if both are empty
+          if (!code && !name) return false;
+          
+          // Skip if code is "العميل" (header row)
+          if (code === 'العميل' || name === 'العميل') return false;
+          
+          // Skip if it's a header row (contains keywords)
+          const combined = (code + ' ' + name).toLowerCase();
+          if (combined.includes('ميزان') || 
+              combined.includes('مراجعه') ||
+              combined.includes('اجمالي') ||
+              combined.includes('المجموع') ||
+              combined.includes('total') ||
+              combined.includes('الكود')) {
+            return false;
+          }
+          
+          return true;
+        })
+        .map(item => ({
+          customerCode: item.customerCode || '',
+          customerName: item.customerName || '',
+          previousBalance: item.previousBalance || 0,
+          debit: item.debit || 0,
+          credit: item.credit || 0,
+          currentBalance: item.currentBalance || 0,
+        }));
+      
+      console.log('🧹 Cleaned data sample:', JSON.stringify(cleanedData.slice(0, 2), null, 2));
+      
+      // Split into batches of 50 rows (smaller for stability)
+      const BATCH_SIZE = 50;
+      const batches = [];
+      for (let i = 0; i < cleanedData.length; i += BATCH_SIZE) {
+        batches.push(cleanedData.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Split into ${batches.length} batches`);
+      
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      
+      for (let i = 0; i < batches.length; i++) {
+        console.log(`📤 Sending batch ${i + 1}/${batches.length}...`);
+        toast.loading(`جاري الاستيراد... ${i + 1}/${batches.length}`, { id: 'import-progress' });
+        
+        try {
+          const result = await uploadBatchMutation.mutateAsync({ 
+            data: batches[i],
+            isFirstBatch: i === 0,
+            isLastBatch: i === batches.length - 1
+          });
+          
+          totalSuccess += result.count || 0;
+          
+          console.log(`✅ Batch ${i + 1} done: ${result.count} rows`);
+        } catch (error: any) {
+          console.error(`❌ Batch ${i + 1} failed:`, error);
+          totalFailed += batches[i].length;
+        }
+      }
+      
+      toast.dismiss('import-progress');
+      toast.success(`تم استيراد ${totalSuccess} سجل بنجاح`);
+      
+      // تحديث البيانات
+      await refetch();
+    } catch (error: any) {
+      console.error("❌ Import error:", error);
+      console.error("Error details:", error.message, error.data);
+      toast.error(`فشل الاستيراد: ${error.message || 'خطأ غير معروف'}`);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -128,8 +217,75 @@ export default function CustomerBalances() {
     toast.success("تم تصدير البيانات بنجاح");
   };
 
+  // Filter and sort functions
+  const getFilteredBalances = () => {
+    let filtered = Array.isArray(customerBalances) ? customerBalances : [];
+    
+    // Apply search
+    if (searchQuery.length > 0) {
+      filtered = Array.isArray(searchResults) ? searchResults : [];
+    }
+    
+    // Apply balance filters
+    if (filterType === "zero") {
+      filtered = filtered.filter(b => b.currentBalance === 0);
+    } else if (filterType === "range" && (minBalance || maxBalance)) {
+      const min = minBalance ? parseFloat(minBalance) * 100 : -Infinity;
+      const max = maxBalance ? parseFloat(maxBalance) * 100 : Infinity;
+      filtered = filtered.filter(b => {
+        const balance = b.currentBalance || 0;
+        return balance >= min && balance <= max;
+      });
+    } else if (filterType === "debit") {
+      filtered = filtered.filter(b => (b.currentBalance || 0) > 0);
+    } else if (filterType === "credit") {
+      filtered = filtered.filter(b => (b.currentBalance || 0) < 0);
+    } else if (filterType === "top10") {
+      filtered = [...filtered].sort((a, b) => Math.abs(b.currentBalance || 0) - Math.abs(a.currentBalance || 0)).slice(0, 10);
+    } else if (filterType === "bottom10") {
+      filtered = [...filtered].sort((a, b) => Math.abs(a.currentBalance || 0) - Math.abs(b.currentBalance || 0)).slice(0, 10);
+    }
+    
+    return filtered;
+  };
+  
+  const sendToWhatsApp = () => {
+    const filtered = getFilteredBalances();
+    if (filtered.length === 0) {
+      toast.error("لا توجد بيانات لإرسالها");
+      return;
+    }
+    
+    let message = "📊 *أرصدة العملاء*\n\n";
+    
+    if (filterType === "zero") message += "العملاء برصيد صفر:\n\n";
+    else if (filterType === "debit") message += "العملاء المدينون:\n\n";
+    else if (filterType === "credit") message += "العملاء الدائنون:\n\n";
+    else if (filterType === "top10") message += "أكبر 10 عملاء:\n\n";
+    else if (filterType === "bottom10") message += "أصغر 10 عملاء:\n\n";
+    else if (filterType === "range") message += `العملاء من ${minBalance || 0} إلى ${maxBalance || "∞"}:\n\n`;
+    
+    filtered.forEach((b, i) => {
+      const balance = (b.currentBalance || 0) / 100;
+      const type = balance > 0 ? "مدين" : balance < 0 ? "دائن" : "صفر";
+      message += `${i + 1}. ${b.customerName}\n`;
+      message += `   الرصيد: ${Math.abs(balance).toFixed(2)} ر.س (${type})\n\n`;
+    });
+    
+    message += `\n📈 الإجمالي: ${filtered.length} عميل`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(message).then(() => {
+      toast.success("تم نسخ الرسالة! افتح واتساب والصقها");
+      // Open WhatsApp Web
+      window.open(`https://web.whatsapp.com/`, '_blank');
+    }).catch(() => {
+      toast.error("فشل النسخ");
+    });
+  };
+
   const balancesArray = Array.isArray(customerBalances) ? customerBalances : [];
-  const displayBalances = searchQuery.length > 0 ? (Array.isArray(searchResults) ? searchResults : []) : balancesArray;
+  const displayBalances = getFilteredBalances();
 
   const totalDebit = balancesArray.reduce((sum, b) => sum + (b.debit || 0), 0) / 100;
   const totalCredit = balancesArray.reduce((sum, b) => sum + (b.credit || 0), 0) / 100;
@@ -169,6 +325,70 @@ export default function CustomerBalances() {
           onChange={handleFileSelect}
         />
 
+        {/* Filters Section */}
+        <Card className="mb-6 glass">
+          <CardHeader>
+            <CardTitle className="text-lg">فلاتر وإرسال سريع</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">نوع الفلتر</label>
+                <select 
+                  value={filterType} 
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="w-full p-2 rounded-lg bg-background border border-border"
+                >
+                  <option value="all">الكل</option>
+                  <option value="zero">رصيد صفر</option>
+                  <option value="debit">مدينون</option>
+                  <option value="credit">دائنون</option>
+                  <option value="range">نطاق محدد</option>
+                  <option value="top10">أكبر 10 عملاء</option>
+                  <option value="bottom10">أصغر 10 عملاء</option>
+                </select>
+              </div>
+              
+              {filterType === "range" && (
+                <>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">من (ر.س)</label>
+                    <Input 
+                      type="number" 
+                      value={minBalance}
+                      onChange={(e) => setMinBalance(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">إلى (ر.س)</label>
+                    <Input 
+                      type="number" 
+                      value={maxBalance}
+                      onChange={(e) => setMaxBalance(e.target.value)}
+                      placeholder="∞"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <div className="flex items-end">
+                <Button 
+                  onClick={sendToWhatsApp}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="ml-2 h-4 w-4" />
+                  إرسال للواتساب
+                </Button>
+              </div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              عدد النتائج: {displayBalances.length} عميل
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="mb-6 flex flex-wrap gap-3">
           <Button
             onClick={() => fileInputRef.current?.click()}
@@ -180,7 +400,21 @@ export default function CustomerBalances() {
             ) : (
               <Upload className="ml-2 h-4 w-4" />
             )}
-            رفع ملف Excel
+            {isImporting ? "جاري الرفع..." : "رفع ملف Excel"}
+          </Button>
+
+          <Button
+            onClick={async () => {
+              toast.info("جاري تحديث البيانات...");
+              await refetch();
+              toast.success("تم تحديث البيانات بنجاح");
+            }}
+            disabled={isLoading}
+            variant="outline"
+            className="border-green-500/30 hover:bg-green-500/10"
+          >
+            <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            تحديث البيانات
           </Button>
 
           <Button

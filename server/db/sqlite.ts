@@ -156,7 +156,7 @@ export function initSQLite(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS accountBalances (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      accountCode TEXT,
+      accountCode TEXT NOT NULL UNIQUE,
       accountName TEXT,
       openingDebitBalance INTEGER DEFAULT 0,
       openingCreditBalance INTEGER DEFAULT 0,
@@ -171,7 +171,7 @@ export function initSQLite(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS customerBalances (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customerCode TEXT NOT NULL,
+      customerCode TEXT NOT NULL UNIQUE,
       customerName TEXT NOT NULL,
       previousBalance INTEGER DEFAULT 0,
       debit INTEGER DEFAULT 0,

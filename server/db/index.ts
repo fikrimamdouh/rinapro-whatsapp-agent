@@ -1028,8 +1028,9 @@ export async function createCustomerBalance(data: {
   if (usingSQLite) {
     const sqlite = sqliteDb.getSQLiteDb();
     if (!sqlite) return;
+    // Use INSERT OR REPLACE to update existing records
     sqlite.prepare(`
-      INSERT INTO customerBalances (customerCode, customerName, previousBalance, debit, credit, currentBalance, phone, importDate)
+      INSERT OR REPLACE INTO customerBalances (customerCode, customerName, previousBalance, debit, credit, currentBalance, phone, importDate)
       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `).run(data.customerCode, data.customerName, data.previousBalance, data.debit, data.credit, data.currentBalance, data.phone || null);
     return;
@@ -1117,8 +1118,9 @@ export async function createAccountBalance(data: {
   if (usingSQLite) {
     const sqlite = sqliteDb.getSQLiteDb();
     if (!sqlite) return;
+    // Use INSERT OR REPLACE to update existing records
     sqlite.prepare(`
-      INSERT INTO accountBalances (accountCode, accountName, openingDebitBalance, openingCreditBalance, debitMovement, creditMovement, debitBalance, creditBalance, importDate)
+      INSERT OR REPLACE INTO accountBalances (accountCode, accountName, openingDebitBalance, openingCreditBalance, debitMovement, creditMovement, debitBalance, creditBalance, importDate)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `).run(data.accountCode, data.accountName, data.openingDebitBalance, data.openingCreditBalance, data.debitMovement, data.creditMovement, data.debitBalance, data.creditBalance);
     return;

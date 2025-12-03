@@ -15,7 +15,8 @@ export const settingsRouter = router({
   get: publicProcedure
     .input(z.object({ key: z.string() }))
     .query(async ({ input }) => {
-      return await db.getSetting(input.key);
+      const value = await db.getSetting(input.key);
+      return value ? { key: input.key, value } : null;
     }),
 
   set: publicProcedure

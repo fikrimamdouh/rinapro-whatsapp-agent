@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Settings, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 export function GeneralSettings() {
   const [settings, setSettings] = useState({
+    groupName: "إدارة التحصيل والمتابعة مصنع بن حامد",
     managerNumber: "+966557111398",
     autoReply: true,
     welcomeMessage: true,
@@ -20,16 +22,48 @@ export function GeneralSettings() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  // جلب الإعدادات الحالية
+  const { data: groupNameSetting } = trpc.settings.get.useQuery({ key: "GROUP_NAME" });
+  const { data: managerNumberSetting } = trpc.settings.get.useQuery({ key: "MANAGER_NUMBER" });
+
+  // تحديث الإعدادات عند التحميل
+  useEffect(() => {
+    if (groupNameSetting?.value) {
+      setSettings(prev => ({ ...prev, groupName: groupNameSetting.value }));
+    }
+    if (managerNumberSetting?.value) {
+      setSettings(prev => ({ ...prev, managerNumber: managerNumberSetting.value }));
+    }
+  }, [groupNameSetting, managerNumberSetting]);
+
+  // Mutation لحفظ الإعدادات
+  const saveGroupName = trpc.settings.set.useMutation();
+  const saveManagerNumber = trpc.settings.set.useMutation();
+
   const handleSave = async () => {
     setIsSaving(true);
-    // محاكاة حفظ الإعدادات
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast.success("تم حفظ الإعدادات بنجاح!");
+    try {
+      await saveGroupName.mutateAsync({
+        key: "GROUP_NAME",
+        value: settings.groupName,
+        description: "اسم مجموعة WhatsApp للتقارير"
+      });
+      await saveManagerNumber.mutateAsync({
+        key: "MANAGER_NUMBER",
+        value: settings.managerNumber,
+        description: "رقم المدير لاستقبال التنبيهات"
+      });
+      toast.success("تم حفظ الإعدادات بنجاح!");
+    } catch (error: any) {
+      toast.error(`فشل حفظ الإعدادات: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
     setSettings({
+      groupName: "إدارة التحصيل والمتابعة مصنع بن حامد",
       managerNumber: "+966557111398",
       autoReply: true,
       welcomeMessage: true,
@@ -55,6 +89,25 @@ export function GeneralSettings() {
 
         {/* Settings Form */}
         <div className="space-y-6">
+          {/* Group Name */}
+          <div className="space-y-2">
+            <Label htmlFor="groupName" className="text-white">
+              اسم المجموعة
+            </Label>
+            <Input
+              id="groupName"
+              value={settings.groupName}
+              onChange={(e) =>
+                setSettings({ ...settings, groupName: e.target.value })
+              }
+              placeholder="إدارة التحصيل والمتابعة مصنع بن حامد"
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <p className="text-xs text-gray-400">
+              اسم مجموعة WhatsApp التي سيتم إرسال التقارير إليها
+            </p>
+          </div>
+
           {/* Manager Number */}
           <div className="space-y-2">
             <Label htmlFor="managerNumber" className="text-white">

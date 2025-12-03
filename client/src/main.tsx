@@ -41,7 +41,7 @@ const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
-      transformer: superjson,
+      // transformer: superjson,  // Removed - causing issues with large numbers
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),
