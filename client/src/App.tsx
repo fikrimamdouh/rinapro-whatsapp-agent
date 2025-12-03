@@ -16,6 +16,13 @@ import Accounts from "./pages/Accounts";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import CustomerBalances from "./pages/CustomerBalances";
 import AccountBalances from "./pages/AccountBalances";
+import Inventory from "./pages/Inventory";
+import Reports from "./pages/Reports";
+import Sales from "./pages/Sales";
+import Purchases from "./pages/Purchases";
+import Maintenance from "./pages/Maintenance";
+import Logistics from "./pages/Logistics";
+import Cashbox from "./pages/Cashbox";
 
 function Router() {
   return (
@@ -30,8 +37,13 @@ function Router() {
       <Route path={"/accounts"} component={Accounts} />
       <Route path={"/account-balances"} component={AccountBalances} />
       <Route path={"/chart-of-accounts"} component={ChartOfAccounts} />
-      <Route path={"/inventory"} component={() => <div className="min-h-screen bg-background p-6 text-center"><h1 className="text-4xl font-bold neon-green mt-20">المخزون - قريباً</h1></div>} />
-      <Route path={"/reports"} component={() => <div className="min-h-screen bg-background p-6 text-center"><h1 className="text-4xl font-bold neon-green mt-20">التقارير - قريباً</h1></div>} />
+      <Route path={"/inventory"} component={Inventory} />
+      <Route path={"/reports"} component={Reports} />
+      <Route path={"/sales"} component={Sales} />
+      <Route path={"/purchases"} component={Purchases} />
+      <Route path={"/maintenance"} component={Maintenance} />
+      <Route path={"/logistics"} component={Logistics} />
+      <Route path={"/cashbox"} component={Cashbox} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/agent"} component={AgentPage} />
       <Route path={"/404"} component={NotFound} />
