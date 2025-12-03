@@ -233,25 +233,7 @@ export default function Fleet() {
           </CardContent>
         </Card>
 
-        {/* Future Features */}
-        <Card className="mt-6 glass-strong border-yellow-500/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-yellow-400">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              ميزات قادمة
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              <li>تتبع GPS مباشر للمركبات</li>
-              <li>عرض المسارات على الخريطة</li>
-              <li>تقييم أداء السائقين</li>
-              <li>تنبيهات الصيانة الدورية</li>
-              <li>تقارير استهلاك الوقود</li>
-              <li>إدارة رخص السيارات والتأمين</li>
-            </ul>
-          </CardContent>
-        </Card>
+
       </div>
     </div>
   );
