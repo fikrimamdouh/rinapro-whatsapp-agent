@@ -7,6 +7,7 @@ import { publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import { getWhatsAppService } from "../whatsapp/whatsappService";
 import { calculateDashboardKPIs, getSalesTrend, getTopSellingItems } from "../services/kpiCalculator";
+import { getAllAnomalies } from "../services/anomalyDetector";
 
 export const systemRouter = router({
   health: publicProcedure.query(() => ({
@@ -39,6 +40,10 @@ export const systemRouter = router({
 
   getTopSellingItems: publicProcedure.query(() => {
     return getTopSellingItems(5);
+  }),
+
+  getAnomalies: publicProcedure.query(() => {
+    return getAllAnomalies();
   }),
 
   getMessageLogs: publicProcedure.query(async () => {

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BackToHome } from "@/components/BackToHome";
+import { AnalyticsCharts } from "@/components/AnalyticsCharts";
 
 export default function Dashboard() {
   const { data: user } = trpc.auth.me.useQuery();
@@ -76,6 +77,11 @@ export default function Dashboard() {
           <p className="text-muted-foreground">
             مرحباً {user?.name || "المستخدم"} - لوحة التحكم الرئيسية
           </p>
+        </div>
+
+        {/* Analytics Charts */}
+        <div className="mb-8">
+          <AnalyticsCharts />
         </div>
 
         {/* Stats Cards */}

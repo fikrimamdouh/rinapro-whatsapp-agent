@@ -9,6 +9,7 @@ import { parseExcelFile, generateTemplate } from "../services/excelParser";
 import { parsePDFFile, savePDFFile } from "../services/pdfParser";
 import { getWhatsAppService } from "../whatsapp/whatsappService";
 import { getSQLiteDb } from "../db/sqlite";
+import { exportSalesToExcel, exportInventoryToExcel, exportCashboxToExcel, exportDashboardSummary } from "../services/reportExporter";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -333,6 +334,53 @@ export const uploadsRouter = router({
           success: false,
           status: "failed",
           message: error.message,
+        };
+      }
+    }),
+
+  /**
+   * Export data to Excel
+   */
+  exportToExcel: publicProcedure
+    .input(z.object({
+      module: z.enum(["sales", "inventory", "cashbox", "dashboard"]),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        let buffer: Buffer;
+        let filename: string;
+
+        switch (input.module) {
+          case "sales":
+            buffer = exportSalesToExcel();
+            filename = `sales-export-${Date.now()}.xlsx`;
+            break;
+          case "inventory":
+            buffer = exportInventoryToExcel();
+            filename = `inventory-export-${Date.now()}.xlsx`;
+            break;
+          case "cashbox":
+            buffer = exportCashboxToExcel();
+            filename = `cashbox-export-${Date.now()}.xlsx`;
+            break;
+          case "dashboard":
+            buffer = exportDashboardSummary();
+            filename = `dashboard-summary-${Date.now()}.xlsx`;
+            break;
+          default:
+            throw new Error("Invalid module");
+        }
+
+        return {
+          success: true,
+          fileBase64: buffer.toString("base64"),
+          filename,
+        };
+      } catch (error: any) {
+        console.error("[Export] Excel export error:", error);
+        return {
+          success: false,
+          message: `خطأ في التصدير: ${error.message}`,
         };
       }
     }),
