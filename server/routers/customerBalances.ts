@@ -7,6 +7,10 @@ export const customerBalancesRouter = router({
     return await db.getCustomerBalances();
   }),
 
+  getAll: publicProcedure.query(async () => {
+    return await db.getCustomerBalances();
+  }),
+
   search: publicProcedure
     .input(z.object({ query: z.string() }))
     .query(async ({ input }) => {
@@ -87,6 +91,50 @@ export const customerBalancesRouter = router({
         successCount, 
         totalCount 
       };
+    }),
+
+  uploadBatch: publicProcedure
+    .input(
+      z.object({
+        data: z.array(z.any()),
+        isFirstBatch: z.boolean(),
+        isLastBatch: z.boolean(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      console.log(`📤 Batch upload: ${input.data.length} rows`);
+      
+      const toHalala = (value: any) => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
+        return isNaN(num) ? 0 : Math.round(num * 100);
+      };
+
+      let successCount = 0;
+      
+      for (const item of input.data) {
+        try {
+          const customerCode = String(item.customerCode || '').trim();
+          const customerName = String(item.customerName || '').trim();
+          
+          if (!customerCode || !customerName) continue;
+          
+          await db.createCustomerBalance({
+            customerCode,
+            customerName,
+            previousBalance: toHalala(item.previousBalance),
+            debit: toHalala(item.debit),
+            credit: toHalala(item.credit),
+            currentBalance: toHalala(item.currentBalance),
+          });
+          
+          successCount++;
+        } catch (error: any) {
+          console.error(`❌ Error:`, error.message);
+        }
+      }
+      
+      return { success: true, count: successCount };
     }),
 
   deleteAll: publicProcedure.mutation(async () => {

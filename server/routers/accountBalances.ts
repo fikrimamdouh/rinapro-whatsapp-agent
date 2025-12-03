@@ -7,6 +7,10 @@ export const accountBalancesRouter = router({
     return await db.getAccountBalances();
   }),
 
+  getAll: publicProcedure.query(async () => {
+    return await db.getAccountBalances();
+  }),
+
   search: publicProcedure
     .input(z.object({ query: z.string() }))
     .query(async ({ input }) => {
@@ -89,6 +93,52 @@ export const accountBalancesRouter = router({
         successCount, 
         totalCount 
       };
+    }),
+
+  uploadBatch: publicProcedure
+    .input(
+      z.object({
+        data: z.array(z.any()),
+        isFirstBatch: z.boolean(),
+        isLastBatch: z.boolean(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      console.log(`📤 Batch upload: ${input.data.length} rows`);
+      
+      const toHalala = (value: any) => {
+        if (value === null || value === undefined || value === '') return 0;
+        const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : Number(value);
+        return isNaN(num) ? 0 : Math.round(num * 100);
+      };
+
+      let successCount = 0;
+      
+      for (const item of input.data) {
+        try {
+          const accountCode = String(item.accountCode || '').trim();
+          const accountName = String(item.accountName || '').trim();
+          
+          if (!accountCode) continue;
+          
+          await db.createAccountBalance({
+            accountCode,
+            accountName,
+            openingDebitBalance: toHalala(item.openingDebitBalance),
+            openingCreditBalance: toHalala(item.openingCreditBalance),
+            debitMovement: toHalala(item.debitMovement),
+            creditMovement: toHalala(item.creditMovement),
+            debitBalance: toHalala(item.debitBalance),
+            creditBalance: toHalala(item.creditBalance),
+          });
+          
+          successCount++;
+        } catch (error: any) {
+          console.error(`❌ Error:`, error.message);
+        }
+      }
+      
+      return { success: true, count: successCount };
     }),
 
   deleteAll: publicProcedure.mutation(async () => {
