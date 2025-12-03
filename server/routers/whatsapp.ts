@@ -33,6 +33,25 @@ export const whatsappRouter = router({
     };
   }),
 
+  logout: publicProcedure.mutation(async () => {
+    const service = getWhatsAppService();
+    await service.logout();
+    return {
+      success: true,
+      message: "تم تسجيل الخروج وحذف الجلسة بنجاح",
+    };
+  }),
+
+  reconnect: publicProcedure.mutation(async () => {
+    const service = getWhatsAppService();
+    const qr = await service.reconnect();
+    return {
+      success: true,
+      qrCode: qr,
+      message: qr ? "تم إعادة الاتصال، يرجى مسح QR Code" : "جاري إعادة الاتصال...",
+    };
+  }),
+
   getGroups: publicProcedure.query(async () => {
     const service = getWhatsAppService();
     return service.getGroups();

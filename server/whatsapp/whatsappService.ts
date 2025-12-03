@@ -6,6 +6,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import qrcode from "qrcode-terminal";
 import { EventEmitter } from "events";
+import { rmSync, existsSync } from "fs";
 import { commandEngine } from "./commandEngine";
 import { rateLimiter } from "./rateLimiter";
 
@@ -25,6 +26,7 @@ export class WhatsAppService extends EventEmitter {
   private currentQR: string | null = null;
   private managerNumber: string | null = null;
   private autoReplyEnabled = true;
+  private readonly authPath = "./auth";
 
   constructor() {
     super();
@@ -66,7 +68,13 @@ export class WhatsAppService extends EventEmitter {
     console.log("[WhatsApp] Starting connection...");
 
     try {
-      const { state, saveCreds } = await useMultiFileAuthState("./auth");
+      // Check if auth folder exists
+      const hasAuth = existsSync(this.authPath);
+      if (!hasAuth) {
+        console.log("[WhatsApp] No existing session found, will show QR code");
+      }
+
+      const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
       const sock = makeWASocket({
         auth: {
           creds: state.creds,
@@ -147,9 +155,24 @@ export class WhatsAppService extends EventEmitter {
       this.isConnecting = false;
       this.status = "disconnected";
       
-      // Retry after error
-      console.log("[WhatsApp] Retrying in 15 seconds...");
-      setTimeout(() => this.connect(), 15000);
+      // Check if session is corrupted
+      const errorMessage = String(error);
+      const isCorrupted = errorMessage.includes("creds.json") || 
+                         errorMessage.includes("ENOENT") ||
+                         errorMessage.includes("Unexpected token") ||
+                         errorMessage.includes("JSON");
+      
+      if (isCorrupted && existsSync(this.authPath)) {
+        console.log("[WhatsApp] Detected corrupted session, deleting and retrying...");
+        this.deleteAuthFolder();
+        
+        // Retry immediately with fresh session
+        setTimeout(() => this.connect(), 2000);
+      } else {
+        // Retry after error
+        console.log("[WhatsApp] Retrying in 15 seconds...");
+        setTimeout(() => this.connect(), 15000);
+      }
       
       return null;
     }
@@ -168,6 +191,54 @@ export class WhatsAppService extends EventEmitter {
       console.log("[WhatsApp] Disconnected");
       this.emit("disconnected");
     }
+  }
+
+  /**
+   * Delete auth folder to clear session
+   */
+  private deleteAuthFolder(): void {
+    try {
+      if (existsSync(this.authPath)) {
+        rmSync(this.authPath, { recursive: true, force: true });
+        console.log("[WhatsApp] Auth folder deleted successfully");
+      } else {
+        console.log("[WhatsApp] Auth folder does not exist, nothing to delete");
+      }
+    } catch (error) {
+      console.error("[WhatsApp] Failed to delete auth folder:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Logout and delete session
+   */
+  async logout(): Promise<void> {
+    console.log("[WhatsApp] Logging out and clearing session...");
+    
+    // Disconnect socket first
+    await this.disconnect();
+    
+    // Delete auth folder
+    this.deleteAuthFolder();
+    
+    console.log("[WhatsApp] Logout complete");
+  }
+
+  /**
+   * Reconnect: logout then connect again
+   */
+  async reconnect(): Promise<string | null> {
+    console.log("[WhatsApp] Reconnecting...");
+    
+    // Logout and clear session
+    await this.logout();
+    
+    // Wait a moment before reconnecting
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Connect again (will show QR)
+    return await this.connect();
   }
 
   async sendMessage(jid: string, text: string): Promise<boolean> {
