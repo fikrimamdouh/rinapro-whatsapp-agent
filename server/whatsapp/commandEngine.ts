@@ -4,6 +4,8 @@
  */
 
 import * as db from "../db";
+import { calculateDashboardKPIs, getSalesTrend, getTopSellingItems } from "../services/kpiCalculator";
+import { getSQLiteDb } from "../db/sqlite";
 
 export interface CommandResult {
   command: string;
@@ -17,17 +19,27 @@ const COMMANDS = {
   PAYMENT: ["دفع", "سداد", "دفعت", "سددت"],
   INVOICES: ["فواتير", "فاتورة", "الفواتير"],
   INSTALLMENTS: ["أقساط", "قسط", "الأقساط", "اقساط"],
+  SALES_TODAY: ["مبيعات اليوم", "مبيعات", "المبيعات اليوم", "مبيعات يوم"],
+  CASHBOX: ["رصيد الصندوق", "الصندوق", "صندوق", "رصيد صندوق"],
+  INVENTORY: ["المخزون", "مخزون", "الأصناف", "اصناف"],
+  KPIS: ["المؤشرات", "مؤشرات", "تقرير", "ملخص"],
   HELP: ["مساعدة", "قائمة", "الأوامر", "help"],
   HELLO: ["مرحبا", "السلام", "هلا", "اهلا", "صباح", "مساء"],
 };
 
 const MENU_TEXT = `📋 *قائمة الأوامر المتاحة:*
 
-1️⃣ *كشف حساب* — عرض كشف حسابك
-2️⃣ *مديونية* — معرفة المبلغ المستحق
-3️⃣ *فواتير* — عرض فواتيرك
-4️⃣ *أقساط* — عرض أقساطك المستحقة
-5️⃣ *مساعدة* — عرض هذه القائمة
+*📊 تقارير الأعمال:*
+• *مبيعات اليوم* — عرض مبيعات اليوم
+• *رصيد الصندوق* — عرض رصيد الصندوق الحالي
+• *المخزون* — عرض حالة المخزون
+• *المؤشرات* — عرض ملخص المؤشرات
+
+*👤 حسابات العملاء:*
+• *كشف حساب* — عرض كشف حسابك
+• *مديونية* — معرفة المبلغ المستحق
+• *فواتير* — عرض فواتيرك
+• *أقساط* — عرض أقساطك المستحقة
 
 💡 يمكنك إرسال رقم هاتفك للبحث عن حسابك`;
 
@@ -127,6 +139,30 @@ export class CommandEngine {
         const installmentsResult = await this.handleInstallments(sender);
         response = installmentsResult.response;
         data = installmentsResult.data;
+        break;
+
+      case "SALES_TODAY":
+        const salesResult = await this.handleSalesToday();
+        response = salesResult.response;
+        data = salesResult.data;
+        break;
+
+      case "CASHBOX":
+        const cashboxResult = await this.handleCashbox();
+        response = cashboxResult.response;
+        data = cashboxResult.data;
+        break;
+
+      case "INVENTORY":
+        const inventoryResult = await this.handleInventory();
+        response = inventoryResult.response;
+        data = inventoryResult.data;
+        break;
+
+      case "KPIS":
+        const kpisResult = await this.handleKPIs();
+        response = kpisResult.response;
+        data = kpisResult.data;
         break;
 
       case "PAYMENT":
@@ -348,6 +384,104 @@ ${installmentList}`,
 
 أرسل *كشف حساب* للتفاصيل`,
       data: customer,
+    };
+  }
+
+  /**
+   * Handle sales today query
+   */
+  private async handleSalesToday(): Promise<{ response: string; data?: any }> {
+    const db = getSQLiteDb();
+    if (!db) {
+      return { response: "⚠️ قاعدة البيانات غير متاحة حالياً" };
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const sales = db.prepare(`
+      SELECT COUNT(*) as count, SUM(totalPrice) as total
+      FROM salesUploads
+      WHERE DATE(saleDate) = ?
+    `).get(today) as { count: number; total: number | null };
+
+    const total = (sales.total || 0) / 100;
+
+    return {
+      response: `📊 *مبيعات اليوم*\n\n` +
+        `📅 التاريخ: ${new Date().toLocaleDateString("ar-SA")}\n` +
+        `🛒 عدد العمليات: ${sales.count}\n` +
+        `💰 الإجمالي: ${total.toLocaleString("ar-SA")} ر.س`,
+      data: sales,
+    };
+  }
+
+  /**
+   * Handle cashbox query
+   */
+  private async handleCashbox(): Promise<{ response: string; data?: any }> {
+    const kpis = calculateDashboardKPIs();
+
+    return {
+      response: `💰 *رصيد الصندوق*\n\n` +
+        `💵 الإيرادات: ${kpis.totalRevenue.toLocaleString("ar-SA")} ر.س\n` +
+        `💸 المصروفات: ${kpis.totalExpenses.toLocaleString("ar-SA")} ر.س\n` +
+        `📊 الرصيد الحالي: ${kpis.cashBalance.toLocaleString("ar-SA")} ر.س`,
+      data: kpis,
+    };
+  }
+
+  /**
+   * Handle inventory query
+   */
+  private async handleInventory(): Promise<{ response: string; data?: any }> {
+    const db = getSQLiteDb();
+    if (!db) {
+      return { response: "⚠️ قاعدة البيانات غير متاحة حالياً" };
+    }
+
+    const stats = db.prepare(`
+      SELECT 
+        COUNT(*) as totalItems,
+        SUM(stockQuantity) as totalQuantity,
+        SUM(totalValue) as totalValue,
+        COUNT(CASE WHEN stockQuantity < 10 THEN 1 END) as lowStock
+      FROM inventoryUploads
+    `).get() as { totalItems: number; totalQuantity: number; totalValue: number; lowStock: number };
+
+    const totalValue = (stats.totalValue || 0) / 100;
+
+    return {
+      response: `📦 *حالة المخزون*\n\n` +
+        `📊 عدد الأصناف: ${stats.totalItems}\n` +
+        `📈 إجمالي الكمية: ${stats.totalQuantity}\n` +
+        `💰 القيمة الإجمالية: ${totalValue.toLocaleString("ar-SA")} ر.س\n` +
+        `⚠️ أصناف منخفضة: ${stats.lowStock}`,
+      data: stats,
+    };
+  }
+
+  /**
+   * Handle KPIs query
+   */
+  private async handleKPIs(): Promise<{ response: string; data?: any }> {
+    const kpis = calculateDashboardKPIs();
+    const topItems = getTopSellingItems(3);
+
+    let response = `📊 *ملخص المؤشرات*\n\n`;
+    response += `🛒 إجمالي المبيعات: ${kpis.totalSales}\n`;
+    response += `💰 رصيد الصندوق: ${kpis.cashBalance.toLocaleString("ar-SA")} ر.س\n`;
+    response += `📦 قيمة المخزون: ${kpis.inventoryValue.toLocaleString("ar-SA")} ر.س\n`;
+    response += `⚠️ تنبيهات المخزون: ${kpis.lowStockItems}\n\n`;
+
+    if (topItems.length > 0) {
+      response += `🏆 *الأكثر مبيعاً:*\n`;
+      topItems.forEach((item, index) => {
+        response += `${index + 1}. ${item.itemName} - ${item.revenue.toLocaleString("ar-SA")} ر.س\n`;
+      });
+    }
+
+    return {
+      response,
+      data: { kpis, topItems },
     };
   }
 }
