@@ -9,6 +9,7 @@ import { EventEmitter } from "events";
 import { rmSync, existsSync } from "fs";
 import { commandEngine } from "./commandEngine";
 import { rateLimiter } from "./rateLimiter";
+import { detectVoiceMessage, downloadVoiceMessage, saveVoiceMessage, transcribeVoice, getVoiceCapabilities } from "../services/voiceHandler";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected";
 
@@ -129,6 +130,51 @@ export class WhatsAppService extends EventEmitter {
         if (!msg?.message || msg.key.fromMe) return;
 
         const sender = msg.key.remoteJid!;
+        
+        // Check if it's a voice message
+        const voiceInfo = detectVoiceMessage(msg);
+        
+        if (voiceInfo.isVoice) {
+          console.log("[WhatsApp] 🎤 Voice message received from", sender);
+          console.log("[WhatsApp] Duration:", voiceInfo.duration, "seconds");
+          console.log("[WhatsApp] Mimetype:", voiceInfo.mimetype);
+          console.log("[WhatsApp] Size:", voiceInfo.fileSize, "bytes");
+          
+          this.emit("voice-message", { sender, voiceInfo, msg });
+          
+          // Try to download and transcribe
+          try {
+            const audioBuffer = await downloadVoiceMessage(msg);
+            if (audioBuffer) {
+              const filename = `voice-${Date.now()}.ogg`;
+              const filePath = await saveVoiceMessage(audioBuffer, filename);
+              console.log("[WhatsApp] Voice saved to:", filePath);
+              
+              // Attempt transcription
+              const transcription = await transcribeVoice(filePath);
+              if (transcription.success && transcription.text) {
+                console.log("[WhatsApp] Transcription:", transcription.text);
+                
+                // Process transcribed text as command
+                if (this.autoReplyEnabled) {
+                  const result = await commandEngine.processMessage(sender, transcription.text);
+                  await this.sendMessage(sender, result.response);
+                }
+              } else {
+                console.log("[WhatsApp] Transcription not available:", transcription.error);
+                if (this.autoReplyEnabled) {
+                  await this.sendMessage(sender, "🎤 تم استلام رسالتك الصوتية. التفريغ النصي غير متاح حالياً. يرجى إرسال رسالة نصية.");
+                }
+              }
+            }
+          } catch (error) {
+            console.error("[WhatsApp] Voice processing error:", error);
+          }
+          
+          return;
+        }
+        
+        // Handle text messages
         const text =
           msg.message?.conversation ||
           msg.message?.extendedTextMessage?.text ||
@@ -322,6 +368,10 @@ export class WhatsAppService extends EventEmitter {
 
   getCurrentQR(): string | null {
     return this.currentQR;
+  }
+
+  getVoiceCapabilities() {
+    return getVoiceCapabilities();
   }
 }
 
