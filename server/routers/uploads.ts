@@ -8,6 +8,7 @@ import { publicProcedure, router } from "../_core/trpc";
 import { parseExcelFile, generateTemplate } from "../services/excelParser";
 import { parsePDFFile, savePDFFile } from "../services/pdfParser";
 import { getWhatsAppService } from "../whatsapp/whatsappService";
+import { getSQLiteDb } from "../db/sqlite";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -56,8 +57,56 @@ export const uploadsRouter = router({
         const filePath = path.join(uploadDir, storedFilename);
         await fs.writeFile(filePath, fileBuffer);
         
-        // TODO: Save to database (fileUploads table)
-        // TODO: Save parsed data to module-specific table
+        // Save to database
+        const db = getSQLiteDb();
+        if (db) {
+          // Insert file upload record
+          const uploadStmt = db.prepare(`
+            INSERT INTO fileUploads (module, fileType, originalFilename, storedFilename, filePath, fileSize, status, totalRows, successRows, failedRows)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          const uploadResult = uploadStmt.run(
+            input.module,
+            "excel",
+            input.filename,
+            storedFilename,
+            filePath,
+            fileBuffer.length,
+            "completed",
+            parseResult.totalRows,
+            parseResult.data.length,
+            parseResult.errors.length
+          );
+          
+          const uploadId = uploadResult.lastInsertRowid as number;
+          
+          // Save parsed data to module-specific table
+          if (input.module === "sales") {
+            const salesStmt = db.prepare(`
+              INSERT INTO salesUploads (uploadId, itemName, quantity, unitPrice, totalPrice, saleDate, customerName, notes)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            for (const row of parseResult.data) {
+              salesStmt.run(uploadId, row.itemName, row.quantity, row.unitPrice, row.totalPrice, row.saleDate, row.customerName, row.notes);
+            }
+          } else if (input.module === "inventory") {
+            const invStmt = db.prepare(`
+              INSERT INTO inventoryUploads (uploadId, sku, itemName, category, stockQuantity, unitPrice, totalValue, notes)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            for (const row of parseResult.data) {
+              invStmt.run(uploadId, row.sku, row.itemName, row.category, row.stockQuantity, row.unitPrice, row.totalValue, row.notes);
+            }
+          } else if (input.module === "cashbox") {
+            const cashStmt = db.prepare(`
+              INSERT INTO cashboxUploads (uploadId, transactionType, amount, transactionDate, description, category, notes)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `);
+            for (const row of parseResult.data) {
+              cashStmt.run(uploadId, row.transactionType, row.amount, row.transactionDate, row.description, row.category, row.notes);
+            }
+          }
+        }
         
         // Send WhatsApp notification
         try {
@@ -183,17 +232,82 @@ export const uploadsRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        // TODO: Query from database
-        // For now, return empty array
+        const db = getSQLiteDb();
+        if (!db) {
+          return { success: true, uploads: [] };
+        }
+        
+        const uploads = db.prepare(`
+          SELECT * FROM fileUploads 
+          WHERE module = ? 
+          ORDER BY createdAt DESC 
+          LIMIT ?
+        `).all(input.module, input.limit);
+        
         return {
           success: true,
-          uploads: [],
+          uploads,
         };
       } catch (error: any) {
         console.error("[Upload] Get history error:", error);
         return {
           success: false,
           uploads: [],
+          message: error.message,
+        };
+      }
+    }),
+
+  /**
+   * Get uploaded data for module
+   */
+  getUploadedData: publicProcedure
+    .input(z.object({
+      module: z.enum(["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]),
+      uploadId: z.number().optional(),
+      limit: z.number().optional().default(100),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const db = getSQLiteDb();
+        if (!db) {
+          return { success: true, data: [] };
+        }
+        
+        let data: any[] = [];
+        
+        if (input.module === "sales") {
+          const query = input.uploadId
+            ? `SELECT * FROM salesUploads WHERE uploadId = ? ORDER BY createdAt DESC LIMIT ?`
+            : `SELECT * FROM salesUploads ORDER BY createdAt DESC LIMIT ?`;
+          data = input.uploadId
+            ? db.prepare(query).all(input.uploadId, input.limit)
+            : db.prepare(query).all(input.limit);
+        } else if (input.module === "inventory") {
+          const query = input.uploadId
+            ? `SELECT * FROM inventoryUploads WHERE uploadId = ? ORDER BY createdAt DESC LIMIT ?`
+            : `SELECT * FROM inventoryUploads ORDER BY createdAt DESC LIMIT ?`;
+          data = input.uploadId
+            ? db.prepare(query).all(input.uploadId, input.limit)
+            : db.prepare(query).all(input.limit);
+        } else if (input.module === "cashbox") {
+          const query = input.uploadId
+            ? `SELECT * FROM cashboxUploads WHERE uploadId = ? ORDER BY createdAt DESC LIMIT ?`
+            : `SELECT * FROM cashboxUploads ORDER BY createdAt DESC LIMIT ?`;
+          data = input.uploadId
+            ? db.prepare(query).all(input.uploadId, input.limit)
+            : db.prepare(query).all(input.limit);
+        }
+        
+        return {
+          success: true,
+          data,
+        };
+      } catch (error: any) {
+        console.error("[Upload] Get data error:", error);
+        return {
+          success: false,
+          data: [],
           message: error.message,
         };
       }

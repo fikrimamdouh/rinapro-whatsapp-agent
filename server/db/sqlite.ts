@@ -182,6 +182,71 @@ export function initSQLite(): Database.Database {
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS fileUploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      module TEXT NOT NULL,
+      fileType TEXT NOT NULL,
+      originalFilename TEXT NOT NULL,
+      storedFilename TEXT NOT NULL,
+      filePath TEXT NOT NULL,
+      fileSize INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending',
+      totalRows INTEGER DEFAULT 0,
+      successRows INTEGER DEFAULT 0,
+      failedRows INTEGER DEFAULT 0,
+      errorMessage TEXT,
+      uploadedBy INTEGER,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      processedAt DATETIME
+    );
+
+    CREATE TABLE IF NOT EXISTS salesUploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uploadId INTEGER NOT NULL,
+      itemName TEXT,
+      quantity INTEGER DEFAULT 0,
+      unitPrice INTEGER DEFAULT 0,
+      totalPrice INTEGER DEFAULT 0,
+      saleDate DATETIME,
+      customerName TEXT,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS inventoryUploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uploadId INTEGER NOT NULL,
+      sku TEXT,
+      itemName TEXT NOT NULL,
+      category TEXT,
+      stockQuantity INTEGER DEFAULT 0,
+      unitPrice INTEGER DEFAULT 0,
+      totalValue INTEGER DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS cashboxUploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uploadId INTEGER NOT NULL,
+      transactionType TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      transactionDate DATETIME NOT NULL,
+      description TEXT,
+      category TEXT,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS reportSnapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uploadId INTEGER,
+      reportType TEXT NOT NULL,
+      reportData TEXT NOT NULL,
+      generatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   console.log("[SQLite] Database initialized at:", dbPath);

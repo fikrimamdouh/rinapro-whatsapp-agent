@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Package, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { UniversalUploader } from "@/components/UniversalUploader";
+import { DataViewer } from "@/components/DataViewer";
 
 export default function Inventory() {
   return (
@@ -32,6 +33,12 @@ export default function Inventory() {
             module="inventory"
             title="رفع بيانات المخزون"
             description="قم برفع ملفات Excel أو PDF لتحليل بيانات المخزون تلقائياً"
+          />
+
+          {/* Data Viewer */}
+          <DataViewer
+            module="inventory"
+            title="سجلات المخزون"
           />
 
           {/* Features Card */}

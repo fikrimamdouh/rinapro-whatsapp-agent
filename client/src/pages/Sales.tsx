@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { UniversalUploader } from "@/components/UniversalUploader";
+import { DataViewer } from "@/components/DataViewer";
 
 export default function Sales() {
   return (
@@ -32,6 +33,12 @@ export default function Sales() {
             module="sales"
             title="رفع بيانات المبيعات"
             description="قم برفع ملفات Excel أو PDF لتحليل بيانات المبيعات تلقائياً"
+          />
+
+          {/* Data Viewer */}
+          <DataViewer
+            module="sales"
+            title="سجلات المبيعات"
           />
 
           {/* Features Card */}

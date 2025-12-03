@@ -6,6 +6,7 @@
 import { publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import { getWhatsAppService } from "../whatsapp/whatsappService";
+import { calculateDashboardKPIs, getSalesTrend, getTopSellingItems } from "../services/kpiCalculator";
 
 export const systemRouter = router({
   health: publicProcedure.query(() => ({
@@ -16,14 +17,28 @@ export const systemRouter = router({
 
   dashboardStats: publicProcedure.query(async () => {
     const stats = await db.getDashboardStats();
+    const kpis = calculateDashboardKPIs();
     const whatsapp = getWhatsAppService();
     const status = whatsapp.getStatus();
 
     return {
       ...stats,
+      ...kpis,
       whatsappConnected: status.connected,
       dbMode: db.isUsingSQLite() ? "sqlite" : "mysql",
     };
+  }),
+
+  getKPIs: publicProcedure.query(() => {
+    return calculateDashboardKPIs();
+  }),
+
+  getSalesTrend: publicProcedure.query(() => {
+    return getSalesTrend();
+  }),
+
+  getTopSellingItems: publicProcedure.query(() => {
+    return getTopSellingItems(5);
   }),
 
   getMessageLogs: publicProcedure.query(async () => {

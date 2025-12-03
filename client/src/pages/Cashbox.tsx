@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Wallet, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { UniversalUploader } from "@/components/UniversalUploader";
+import { DataViewer } from "@/components/DataViewer";
 
 export default function Cashbox() {
   return (
@@ -24,6 +25,12 @@ export default function Cashbox() {
             module="cashbox"
             title="رفع بيانات الصندوق"
             description="قم برفع ملفات Excel أو PDF لتحليل بيانات الصندوق تلقائياً"
+          />
+
+          {/* Data Viewer */}
+          <DataViewer
+            module="cashbox"
+            title="سجلات الصندوق"
           />
 
           {/* Features Card */}
