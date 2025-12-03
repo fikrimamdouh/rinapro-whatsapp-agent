@@ -6,6 +6,7 @@
 import * as XLSX from "xlsx";
 import { getSQLiteDb } from "../db/sqlite";
 import { calculateDashboardKPIs } from "./kpiCalculator";
+import { getCompanyInfo, createReportHeader, createReportFooter } from "./brandingService";
 
 /**
  * Export sales data to Excel
@@ -122,15 +123,14 @@ export function exportDashboardSummary(): Buffer {
  */
 export function generatePDFReport(module: string): string {
   const kpis = calculateDashboardKPIs();
-  const date = new Date().toLocaleDateString("ar-SA");
+  const company = getCompanyInfo();
 
-  let report = `تقرير ${module}\n`;
-  report += `التاريخ: ${date}\n\n`;
+  let report = createReportHeader(`تقرير ${module}`) + `\n\n`;
   report += `=== ملخص المؤشرات ===\n`;
   report += `إجمالي المبيعات: ${kpis.totalSales}\n`;
   report += `رصيد الصندوق: ${kpis.cashBalance.toFixed(2)} ريال\n`;
   report += `قيمة المخزون: ${kpis.inventoryValue.toFixed(2)} ريال\n\n`;
-  report += `تم إنشاء التقرير تلقائياً من نظام RinaPro\n`;
+  report += createReportFooter();
 
   return report;
 }

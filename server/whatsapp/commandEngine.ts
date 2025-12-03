@@ -6,6 +6,7 @@
 import * as db from "../db";
 import { calculateDashboardKPIs, getSalesTrend, getTopSellingItems } from "../services/kpiCalculator";
 import { getSQLiteDb } from "../db/sqlite";
+import { brandWhatsAppMessage, createReportHeader } from "../services/brandingService";
 
 export interface CommandResult {
   command: string;
@@ -393,7 +394,7 @@ ${installmentList}`,
   private async handleSalesToday(): Promise<{ response: string; data?: any }> {
     const db = getSQLiteDb();
     if (!db) {
-      return { response: "⚠️ قاعدة البيانات غير متاحة حالياً" };
+      return { response: brandWhatsAppMessage("⚠️ قاعدة البيانات غير متاحة حالياً") };
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -405,11 +406,13 @@ ${installmentList}`,
 
     const total = (sales.total || 0) / 100;
 
+    const message = `📊 *مبيعات اليوم*\n\n` +
+      `📅 التاريخ: ${new Date().toLocaleDateString("ar-SA")}\n` +
+      `🛒 عدد العمليات: ${sales.count}\n` +
+      `💰 الإجمالي: ${total.toLocaleString("ar-SA")} ر.س`;
+
     return {
-      response: `📊 *مبيعات اليوم*\n\n` +
-        `📅 التاريخ: ${new Date().toLocaleDateString("ar-SA")}\n` +
-        `🛒 عدد العمليات: ${sales.count}\n` +
-        `💰 الإجمالي: ${total.toLocaleString("ar-SA")} ر.س`,
+      response: brandWhatsAppMessage(message),
       data: sales,
     };
   }
@@ -466,21 +469,21 @@ ${installmentList}`,
     const kpis = calculateDashboardKPIs();
     const topItems = getTopSellingItems(3);
 
-    let response = `📊 *ملخص المؤشرات*\n\n`;
-    response += `🛒 إجمالي المبيعات: ${kpis.totalSales}\n`;
-    response += `💰 رصيد الصندوق: ${kpis.cashBalance.toLocaleString("ar-SA")} ر.س\n`;
-    response += `📦 قيمة المخزون: ${kpis.inventoryValue.toLocaleString("ar-SA")} ر.س\n`;
-    response += `⚠️ تنبيهات المخزون: ${kpis.lowStockItems}\n\n`;
+    let message = createReportHeader("ملخص المؤشرات") + `\n\n`;
+    message += `🛒 إجمالي المبيعات: ${kpis.totalSales}\n`;
+    message += `💰 رصيد الصندوق: ${kpis.cashBalance.toLocaleString("ar-SA")} ر.س\n`;
+    message += `📦 قيمة المخزون: ${kpis.inventoryValue.toLocaleString("ar-SA")} ر.س\n`;
+    message += `⚠️ تنبيهات المخزون: ${kpis.lowStockItems}\n\n`;
 
     if (topItems.length > 0) {
-      response += `🏆 *الأكثر مبيعاً:*\n`;
+      message += `🏆 *الأكثر مبيعاً:*\n`;
       topItems.forEach((item, index) => {
-        response += `${index + 1}. ${item.itemName} - ${item.revenue.toLocaleString("ar-SA")} ر.س\n`;
+        message += `${index + 1}. ${item.itemName} - ${item.revenue.toLocaleString("ar-SA")} ر.س\n`;
       });
     }
 
     return {
-      response,
+      response: brandWhatsAppMessage(message),
       data: { kpis, topItems },
     };
   }

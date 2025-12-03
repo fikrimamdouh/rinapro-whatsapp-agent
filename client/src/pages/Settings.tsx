@@ -22,6 +22,8 @@ export default function Settings() {
   const [managerNumber, setManagerNumber] = useState("");
   const [groupName, setGroupName] = useState("");
   const [apiToken, setApiToken] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyLogo, setCompanyLogo] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
 
@@ -55,10 +57,14 @@ export default function Settings() {
       const manager = settings.find((s) => s.settingKey === "MANAGER_NUMBER");
       const group = settings.find((s) => s.settingKey === "GROUP_NAME");
       const token = settings.find((s) => s.settingKey === "API_TOKEN");
+      const company = settings.find((s) => s.settingKey === "COMPANY_NAME");
+      const logo = settings.find((s) => s.settingKey === "COMPANY_LOGO");
 
       if (manager) setManagerNumber(manager.settingValue || "");
       if (group) setGroupName(group.settingValue || "");
       if (token) setApiToken(token.settingValue || "");
+      if (company) setCompanyName(company.settingValue || "");
+      if (logo) setCompanyLogo(logo.settingValue || "");
     }
   }, [settings]);
 
@@ -74,6 +80,18 @@ export default function Settings() {
         key: "GROUP_NAME",
         value: groupName,
         description: "اسم جروب WhatsApp للتقارير",
+      });
+
+      await setSettingMutation.mutateAsync({
+        key: "COMPANY_NAME",
+        value: companyName,
+        description: "اسم الشركة",
+      });
+
+      await setSettingMutation.mutateAsync({
+        key: "COMPANY_LOGO",
+        value: companyLogo,
+        description: "شعار الشركة (URL)",
       });
 
       await setSettingMutation.mutateAsync({
@@ -146,6 +164,35 @@ export default function Settings() {
               />
               <p className="text-sm text-muted-foreground mt-1">
                 اسم جروب WhatsApp الذي سيتم إرسال التقارير إليه
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="company-name">اسم الشركة</Label>
+              <Input
+                id="company-name"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="شركة رينا برو للتقنية"
+                className="glass"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                سيظهر في التقارير والرسائل
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="company-logo">شعار الشركة (URL)</Label>
+              <Input
+                id="company-logo"
+                value={companyLogo}
+                onChange={(e) => setCompanyLogo(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                className="glass"
+                dir="ltr"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                رابط شعار الشركة (سيظهر في التقارير)
               </p>
             </div>
 
