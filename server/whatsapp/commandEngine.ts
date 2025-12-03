@@ -7,6 +7,7 @@ import * as db from "../db";
 import { calculateDashboardKPIs, getSalesTrend, getTopSellingItems } from "../services/kpiCalculator";
 import { getSQLiteDb } from "../db/sqlite";
 import { brandWhatsAppMessage, createReportHeader } from "../services/brandingService";
+import { processNaturalLanguage } from "../services/aiEngine";
 
 export interface CommandResult {
   command: string;
@@ -180,7 +181,20 @@ export class CommandEngine {
         break;
 
       default:
-        response = FALLBACK_TEXT;
+        // Try AI-powered natural language processing
+        try {
+          const aiResult = await processNaturalLanguage(sender, text);
+          if (aiResult.response && !aiResult.response.includes("لم أفهم")) {
+            response = aiResult.response;
+            data = aiResult.data;
+            command = "AI_PROCESSED";
+          } else {
+            response = FALLBACK_TEXT;
+          }
+        } catch (error) {
+          console.error("[CommandEngine] AI processing error:", error);
+          response = FALLBACK_TEXT;
+        }
     }
 
     // Log the response
