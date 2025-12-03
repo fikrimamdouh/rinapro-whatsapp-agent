@@ -1,13 +1,14 @@
 import { BackToHome } from "@/components/BackToHome";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, ArrowRight, Loader2 } from "lucide-react";
+import { Package, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { UniversalUploader } from "@/components/UniversalUploader";
 
 export default function Inventory() {
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-6xl">
         <BackToHome />
         
         <div className="mt-8 space-y-6">
@@ -26,29 +27,28 @@ export default function Inventory() {
             </p>
           </div>
 
-          {/* Status Card */}
-          <Card className="glass-strong border-yellow-500/20">
+          {/* Upload Section */}
+          <UniversalUploader
+            module="inventory"
+            title="رفع بيانات المخزون"
+            description="قم برفع ملفات Excel أو PDF لتحليل بيانات المخزون تلقائياً"
+          />
+
+          {/* Features Card */}
+          <Card className="glass-strong">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
-                قيد التطوير
-              </CardTitle>
+              <CardTitle>الوظائف المتاحة</CardTitle>
               <CardDescription>
-                هذه الصفحة قيد التطوير حالياً
+                يمكنك الآن رفع وتحليل بيانات المخزون
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-muted-foreground">
-                سيتم إضافة الوظائف التالية قريباً:
-              </p>
               <ul className="list-disc list-inside space-y-2 text-muted-foreground mr-4">
-                <li>عرض قائمة المنتجات والأصناف</li>
-                <li>إضافة وتعديل المنتجات</li>
-                <li>عمليات التوريد والصرف</li>
-                <li>تتبع الكميات والأرصدة</li>
-                <li>تقارير حركة المخزون</li>
-                <li>تنبيهات نقص المخزون</li>
                 <li>رفع ملفات Excel للمنتجات</li>
+                <li>تحليل تلقائي للبيانات</li>
+                <li>معاينة البيانات قبل الحفظ</li>
+                <li>إرسال تقارير عبر WhatsApp</li>
+                <li>تحديث لوحة التحكم تلقائياً</li>
               </ul>
               
               <div className="pt-4">

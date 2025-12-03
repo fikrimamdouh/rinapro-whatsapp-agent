@@ -1,13 +1,14 @@
 import { BackToHome } from "@/components/BackToHome";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wrench, ArrowRight, Loader2 } from "lucide-react";
+import { Wrench, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { UniversalUploader } from "@/components/UniversalUploader";
 
 export default function Maintenance() {
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-6xl">
         <BackToHome />
         
         <div className="mt-8 space-y-6">
@@ -26,8 +27,15 @@ export default function Maintenance() {
             </p>
           </div>
 
-          {/* Status Card */}
-          <Card className="glass-strong border-yellow-500/20">
+          {/* Upload Section */}
+          <UniversalUploader
+            module="maintenance"
+            title="رفع بيانات الصيانة"
+            description="قم برفع ملفات Excel أو PDF لتحليل بيانات الصيانة تلقائياً"
+          />
+
+          {/* Features Card */}
+          <Card className="glass-strong">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />

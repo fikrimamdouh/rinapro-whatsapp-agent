@@ -1,13 +1,14 @@
 import { BackToHome } from "@/components/BackToHome";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ArrowRight, Loader2 } from "lucide-react";
+import { Wallet, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { UniversalUploader } from "@/components/UniversalUploader";
 
 export default function Cashbox() {
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-6xl">
         <BackToHome />
         
         <div className="mt-8 space-y-6">
@@ -16,18 +17,17 @@ export default function Cashbox() {
             <div className="flex justify-center">
               <div className="p-4 rounded-full neon-green-bg">
                 <Wallet className="h-12 w-12 neon-green" />
-              </div>
-            </div>
-            <h1 className="text-4xl font-bold neon-green">
-              الصندوق
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              إدارة الصندوق والمدفوعات النقدية
-            </p>
           </div>
 
-          {/* Status Card */}
-          <Card className="glass-strong border-yellow-500/20">
+          {/* Upload Section */}
+          <UniversalUploader
+            module="cashbox"
+            title="رفع بيانات الصندوق"
+            description="قم برفع ملفات Excel أو PDF لتحليل بيانات الصندوق تلقائياً"
+          />
+
+          {/* Features Card */}
+          <Card className="glass-strong">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
@@ -58,11 +58,3 @@ export default function Cashbox() {
                     العودة إلى لوحة التحكم
                   </Button>
                 </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}

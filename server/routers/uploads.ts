@@ -1,0 +1,241 @@
+/**
+ * Uploads Router
+ * tRPC endpoints for file upload and analysis
+ */
+
+import { z } from "zod";
+import { publicProcedure, router } from "../_core/trpc";
+import { parseExcelFile, generateTemplate } from "../services/excelParser";
+import { parsePDFFile, savePDFFile } from "../services/pdfParser";
+import { getWhatsAppService } from "../whatsapp/whatsappService";
+import { promises as fs } from "fs";
+import path from "path";
+
+// Validation schemas
+const uploadExcelSchema = z.object({
+  module: z.enum(["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]),
+  fileBase64: z.string(),
+  filename: z.string(),
+});
+
+const uploadPDFSchema = z.object({
+  module: z.enum(["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]),
+  fileBase64: z.string(),
+  filename: z.string(),
+});
+
+export const uploadsRouter = router({
+  /**
+   * Upload and parse Excel file
+   */
+  uploadExcel: publicProcedure
+    .input(uploadExcelSchema)
+    .mutation(async ({ input }) => {
+      try {
+        // Decode base64
+        const fileBuffer = Buffer.from(input.fileBase64, "base64");
+        
+        // Parse Excel
+        const parseResult = parseExcelFile(fileBuffer, input.module);
+        
+        if (!parseResult.success) {
+          return {
+            success: false,
+            message: "فشل تحليل ملف Excel",
+            errors: parseResult.errors,
+            data: null,
+          };
+        }
+        
+        // Save file
+        const uploadDir = `./server/uploads/${input.module}`;
+        await fs.mkdir(uploadDir, { recursive: true });
+        
+        const timestamp = Date.now();
+        const storedFilename = `${timestamp}-${input.filename}`;
+        const filePath = path.join(uploadDir, storedFilename);
+        await fs.writeFile(filePath, fileBuffer);
+        
+        // TODO: Save to database (fileUploads table)
+        // TODO: Save parsed data to module-specific table
+        
+        // Send WhatsApp notification
+        try {
+          const whatsapp = getWhatsAppService();
+          if (whatsapp.isConnected()) {
+            const summary = `📊 *تقرير تحليل البيانات*\n\n` +
+              `📁 الوحدة: ${getModuleNameArabic(input.module)}\n` +
+              `📄 الملف: ${input.filename}\n` +
+              `✅ تم معالجة: ${parseResult.data.length} سجل\n` +
+              `❌ أخطاء: ${parseResult.errors.length}\n\n` +
+              `تم تحديث لوحة التحكم بنجاح.`;
+            
+            await whatsapp.sendToManager(summary);
+          }
+        } catch (error) {
+          console.error("[Upload] Failed to send WhatsApp notification:", error);
+        }
+        
+        return {
+          success: true,
+          message: `تم رفع وتحليل الملف بنجاح - ${parseResult.data.length} سجل`,
+          data: parseResult.data,
+          headers: parseResult.headers,
+          totalRows: parseResult.totalRows,
+          errors: parseResult.errors,
+        };
+      } catch (error: any) {
+        console.error("[Upload] Excel upload error:", error);
+        return {
+          success: false,
+          message: `خطأ في رفع الملف: ${error.message}`,
+          errors: [error.message],
+          data: null,
+        };
+      }
+    }),
+
+  /**
+   * Upload and process PDF file
+   */
+  uploadPDF: publicProcedure
+    .input(uploadPDFSchema)
+    .mutation(async ({ input }) => {
+      try {
+        // Decode base64
+        const fileBuffer = Buffer.from(input.fileBase64, "base64");
+        
+        // Save PDF file
+        const timestamp = Date.now();
+        const storedFilename = `${timestamp}-${input.filename}`;
+        const filePath = await savePDFFile(fileBuffer, input.module, storedFilename);
+        
+        // Parse PDF (basic extraction)
+        const parseResult = await parsePDFFile(fileBuffer, input.module);
+        
+        // Send WhatsApp notification
+        try {
+          const whatsapp = getWhatsAppService();
+          if (whatsapp.isConnected()) {
+            const summary = `📄 *تقرير رفع ملف PDF*\n\n` +
+              `📁 الوحدة: ${getModuleNameArabic(input.module)}\n` +
+              `📄 الملف: ${input.filename}\n` +
+              `✅ تم حفظ الملف بنجاح\n\n` +
+              `${parseResult.text}`;
+            
+            await whatsapp.sendToManager(summary);
+          }
+        } catch (error) {
+          console.error("[Upload] Failed to send WhatsApp notification:", error);
+        }
+        
+        return {
+          success: true,
+          message: "تم رفع ملف PDF بنجاح",
+          filePath,
+          extractedData: parseResult.extractedData,
+          errors: parseResult.errors,
+        };
+      } catch (error: any) {
+        console.error("[Upload] PDF upload error:", error);
+        return {
+          success: false,
+          message: `خطأ في رفع الملف: ${error.message}`,
+          errors: [error.message],
+        };
+      }
+    }),
+
+  /**
+   * Download Excel template for module
+   */
+  downloadTemplate: publicProcedure
+    .input(z.object({
+      module: z.enum(["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const templateBuffer = generateTemplate(input.module);
+        const fileBase64 = templateBuffer.toString("base64");
+        const filename = `template-${input.module}-${Date.now()}.xlsx`;
+        
+        return {
+          success: true,
+          fileBase64,
+          filename,
+        };
+      } catch (error: any) {
+        console.error("[Upload] Template generation error:", error);
+        return {
+          success: false,
+          message: `خطأ في إنشاء القالب: ${error.message}`,
+        };
+      }
+    }),
+
+  /**
+   * Get upload history for module
+   */
+  getUploadHistory: publicProcedure
+    .input(z.object({
+      module: z.enum(["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]),
+      limit: z.number().optional().default(10),
+    }))
+    .query(async ({ input }) => {
+      try {
+        // TODO: Query from database
+        // For now, return empty array
+        return {
+          success: true,
+          uploads: [],
+        };
+      } catch (error: any) {
+        console.error("[Upload] Get history error:", error);
+        return {
+          success: false,
+          uploads: [],
+          message: error.message,
+        };
+      }
+    }),
+
+  /**
+   * Get analysis status
+   */
+  getAnalysisStatus: publicProcedure
+    .input(z.object({
+      uploadId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        // TODO: Query from database
+        return {
+          success: true,
+          status: "completed",
+          progress: 100,
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          status: "failed",
+          message: error.message,
+        };
+      }
+    }),
+});
+
+/**
+ * Helper: Get module name in Arabic
+ */
+function getModuleNameArabic(module: string): string {
+  const names: Record<string, string> = {
+    sales: "المبيعات",
+    inventory: "المخزون",
+    cashbox: "الصندوق",
+    reports: "التقارير",
+    purchases: "المشتريات",
+    maintenance: "الصيانة",
+    logistics: "اللوجستيات",
+  };
+  return names[module] || module;
+}

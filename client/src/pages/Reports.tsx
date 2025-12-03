@@ -1,13 +1,14 @@
 import { BackToHome } from "@/components/BackToHome";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, ArrowRight, Loader2 } from "lucide-react";
+import { BarChart3, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
+import { UniversalUploader } from "@/components/UniversalUploader";
 
 export default function Reports() {
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-6xl">
         <BackToHome />
         
         <div className="mt-8 space-y-6">
@@ -26,13 +27,17 @@ export default function Reports() {
             </p>
           </div>
 
-          {/* Status Card */}
-          <Card className="glass-strong border-yellow-500/20">
+          {/* Upload Section */}
+          <UniversalUploader
+            module="reports"
+            title="رفع بيانات التقارير"
+            description="قم برفع ملفات Excel أو PDF لتحليل البيانات وإنشاء التقارير تلقائياً"
+          />
+
+          {/* Features Card */}
+          <Card className="glass-strong">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
-                قيد التطوير
-              </CardTitle>
+              <CardTitle>الوظائف المتاحة</CardTitle>
               <CardDescription>
                 هذه الصفحة قيد التطوير حالياً
               </CardDescription>

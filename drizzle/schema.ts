@@ -334,3 +334,99 @@ export const whatsappStats = mysqlTable("whatsappStats", {
 
 export type WhatsAppStats = typeof whatsappStats.$inferSelect;
 export type InsertWhatsAppStats = typeof whatsappStats.$inferInsert;
+
+/**
+ * جدول تتبع الملفات المرفوعة (File Uploads)
+ * لتتبع جميع الملفات المرفوعة عبر النظام
+ */
+export const fileUploads = mysqlTable("fileUploads", {
+  id: int("id").autoincrement().primaryKey(),
+  module: mysqlEnum("module", ["sales", "inventory", "cashbox", "reports", "purchases", "maintenance", "logistics"]).notNull(),
+  fileType: mysqlEnum("fileType", ["excel", "pdf"]).notNull(),
+  originalFilename: varchar("originalFilename", { length: 255 }).notNull(),
+  storedFilename: varchar("storedFilename", { length: 255 }).notNull(),
+  filePath: varchar("filePath", { length: 500 }).notNull(),
+  fileSize: int("fileSize").notNull(), // بالبايت
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  totalRows: int("totalRows").default(0),
+  successRows: int("successRows").default(0),
+  failedRows: int("failedRows").default(0),
+  errorMessage: text("errorMessage"),
+  uploadedBy: int("uploadedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt"),
+});
+
+export type FileUpload = typeof fileUploads.$inferSelect;
+export type InsertFileUpload = typeof fileUploads.$inferInsert;
+
+/**
+ * جدول بيانات المبيعات المستوردة (Sales Uploads)
+ */
+export const salesUploads = mysqlTable("salesUploads", {
+  id: int("id").autoincrement().primaryKey(),
+  uploadId: int("uploadId").notNull(), // ربط مع fileUploads
+  itemName: varchar("itemName", { length: 255 }),
+  quantity: int("quantity").default(0),
+  unitPrice: int("unitPrice").default(0), // بالهللة
+  totalPrice: int("totalPrice").default(0), // بالهللة
+  saleDate: timestamp("saleDate"),
+  customerName: varchar("customerName", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SalesUpload = typeof salesUploads.$inferSelect;
+export type InsertSalesUpload = typeof salesUploads.$inferInsert;
+
+/**
+ * جدول بيانات المخزون المستوردة (Inventory Uploads)
+ */
+export const inventoryUploads = mysqlTable("inventoryUploads", {
+  id: int("id").autoincrement().primaryKey(),
+  uploadId: int("uploadId").notNull(),
+  sku: varchar("sku", { length: 100 }),
+  itemName: varchar("itemName", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  stockQuantity: int("stockQuantity").default(0),
+  unitPrice: int("unitPrice").default(0), // بالهللة
+  totalValue: int("totalValue").default(0), // بالهللة
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type InventoryUpload = typeof inventoryUploads.$inferSelect;
+export type InsertInventoryUpload = typeof inventoryUploads.$inferInsert;
+
+/**
+ * جدول بيانات الصندوق المستوردة (Cashbox Uploads)
+ */
+export const cashboxUploads = mysqlTable("cashboxUploads", {
+  id: int("id").autoincrement().primaryKey(),
+  uploadId: int("uploadId").notNull(),
+  transactionType: mysqlEnum("transactionType", ["income", "expense"]).notNull(),
+  amount: int("amount").notNull(), // بالهللة
+  transactionDate: timestamp("transactionDate").notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CashboxUpload = typeof cashboxUploads.$inferSelect;
+export type InsertCashboxUpload = typeof cashboxUploads.$inferInsert;
+
+/**
+ * جدول لقطات التقارير (Report Snapshots)
+ */
+export const reportSnapshots = mysqlTable("reportSnapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  uploadId: int("uploadId"),
+  reportType: varchar("reportType", { length: 100 }).notNull(),
+  reportData: text("reportData").notNull(), // JSON
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ReportSnapshot = typeof reportSnapshots.$inferSelect;
+export type InsertReportSnapshot = typeof reportSnapshots.$inferInsert;
