@@ -62,19 +62,32 @@ export class WhatsAppService extends EventEmitter {
 
   async connect(): Promise<string | null> {
     if (this.isConnecting) return null;
+    
+    // إغلاق أي اتصال موجود
+    if (this.socket) {
+      console.log("[WhatsApp] Closing existing connection...");
+      try {
+        await this.socket.logout();
+      } catch (e) {
+        // تجاهل الأخطاء
+      }
+      this.socket = null;
+    }
+    
+    // حذف الجلسة القديمة لإجبار QR جديد
+    if (existsSync(this.authPath)) {
+      console.log("[WhatsApp] Removing old session to force new QR code...");
+      rmSync(this.authPath, { recursive: true, force: true });
+    }
+    
     this.isConnecting = true;
     this.status = "connecting";
+    this.currentQR = null;
     this.emit("connecting");
 
-    console.log("[WhatsApp] Starting connection...");
+    console.log("[WhatsApp] Starting fresh connection...");
 
     try {
-      // Check if auth folder exists
-      const hasAuth = existsSync(this.authPath);
-      if (!hasAuth) {
-        console.log("[WhatsApp] No existing session found, will show QR code");
-      }
-
       const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
       const sock = makeWASocket({
         auth: {

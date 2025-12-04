@@ -114,9 +114,7 @@ export function ConnectionStatus() {
   };
 
   const handleLogout = () => {
-    if (confirm("هل أنت متأكد من تسجيل الخروج؟ سيتم إلغاء الجلسة الحالية وإنشاء QR Code جديد.")) {
-      logoutMutation.mutate();
-    }
+    logoutMutation.mutate();
   };
 
   const isConnected = status?.connected || false;
@@ -220,15 +218,15 @@ export function ConnectionStatus() {
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               size="lg"
             >
-              {isLoading ? (
+              {isLoading || isConnecting ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   جاري الاتصال...
                 </>
               ) : (
                 <>
-                  <Wifi className="w-5 h-5 mr-2" />
-                  اتصال
+                  <QrCode className="w-5 h-5 mr-2" />
+                  اتصال جديد (QR Code)
                 </>
               )}
             </Button>
@@ -269,7 +267,7 @@ export function ConnectionStatus() {
                 ) : (
                   <>
                     <LogOut className="w-5 h-5 mr-2" />
-                    تسجيل الخروج
+                    إعادة ربط (QR جديد)
                   </>
                 )}
               </Button>
@@ -287,11 +285,29 @@ export function ConnectionStatus() {
         </div>
 
         {/* Connection Tips */}
-        {!isConnected && !qrCode && (
+        {!isConnected && !qrCode && !isConnecting && (
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <p className="text-sm text-blue-300">
-              💡 <strong>نصيحة:</strong> تأكد من أن هاتفك متصل بالإنترنت قبل مسح QR Code
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-blue-300">
+                💡 <strong>للاتصال لأول مرة:</strong>
+              </p>
+              <ol className="text-sm text-blue-200 list-decimal list-inside space-y-1">
+                <li>اضغط زر "اتصال جديد (QR Code)"</li>
+                <li>انتظر ظهور QR Code (5-10 ثواني)</li>
+                <li>امسح الكود من هاتفك</li>
+              </ol>
+            </div>
+          </div>
+        )}
+        
+        {isConnecting && !qrCode && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-yellow-300">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <p className="text-sm">
+                جاري إنشاء QR Code... يرجى الانتظار
+              </p>
+            </div>
           </div>
         )}
       </div>
