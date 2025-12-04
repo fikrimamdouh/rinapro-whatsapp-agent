@@ -48,5 +48,21 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // commented for dev mode
+  const distPath = path.resolve(process.cwd(), "dist", "public");
+  const indexPath = path.join(distPath, "index.html");
+
+  console.log(`[Static] Serving from: ${distPath}`);
+  console.log(`[Static] Index file: ${indexPath}`);
+
+  // Serve static files
+  app.use(express.static(distPath));
+
+  // SPA fallback - serve index.html for all routes
+  app.get("*", (req, res) => {
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).send("Application not built. Run 'npm run build' first.");
+    }
+  });
 }
