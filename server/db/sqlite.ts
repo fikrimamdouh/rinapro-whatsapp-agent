@@ -95,6 +95,46 @@ export function initSQLite(): Database.Database {
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS customerInstallments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      installmentNumber TEXT UNIQUE NOT NULL,
+      customerCode TEXT NOT NULL,
+      customerName TEXT NOT NULL,
+      customerPhone TEXT,
+      totalAmount INTEGER NOT NULL,
+      paidAmount INTEGER DEFAULT 0,
+      remainingAmount INTEGER NOT NULL,
+      installmentAmount INTEGER NOT NULL,
+      dueDate DATETIME NOT NULL,
+      paidDate DATETIME,
+      status TEXT DEFAULT 'pending',
+      paymentMethod TEXT,
+      receiptNumber TEXT,
+      notes TEXT,
+      source TEXT DEFAULT 'manual',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS bonds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bondNumber TEXT UNIQUE NOT NULL,
+      bondType TEXT NOT NULL,
+      customerCode TEXT,
+      customerName TEXT,
+      amount INTEGER NOT NULL,
+      bondDate DATETIME NOT NULL,
+      description TEXT,
+      paymentMethod TEXT,
+      referenceNumber TEXT,
+      status TEXT DEFAULT 'active',
+      attachmentPath TEXT,
+      notes TEXT,
+      source TEXT DEFAULT 'manual',
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS messageLogs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       messageFrom TEXT NOT NULL,

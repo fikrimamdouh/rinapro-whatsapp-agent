@@ -1,16 +1,9 @@
-import { useState } from "react";
-import { trpc } from "@/lib/trpc";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -26,485 +19,742 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { BackToHome } from "@/components/BackToHome";
-import { Calendar, Plus, Search, CheckCircle, AlertCircle, Clock } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Calendar,
+  DollarSign,
+  FileText,
+  Upload,
+  Plus,
+  Search,
+  Download,
+  User,
+  Phone,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 
 export default function Installments() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isPayDialogOpen, setIsPayDialogOpen] = useState(false);
-  const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("installments");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isAddInstallmentOpen, setIsAddInstallmentOpen] = useState(false);
+  const [isAddBondOpen, setIsAddBondOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    invoiceId: "",
-    customerId: "",
+  // Form states
+  const [installmentForm, setInstallmentForm] = useState({
+    customerCode: "",
+    customerName: "",
+    customerPhone: "",
+    totalAmount: "",
+    installmentAmount: "",
+    dueDate: "",
+    notes: "",
+  });
+
+  const [bondForm, setBondForm] = useState({
+    bondType: "receipt",
+    customerCode: "",
+    customerName: "",
     amount: "",
-    dueDate: new Date().toISOString().split("T")[0],
+    bondDate: "",
+    description: "",
+    paymentMethod: "cash",
+    referenceNumber: "",
     notes: "",
   });
 
   // Queries
-  const { data: installments, isLoading, refetch } = trpc.installments.list.useQuery();
-  const { data: invoices } = trpc.invoices.list.useQuery();
-  const { data: customers } = trpc.customers.list.useQuery();
-  const { data: overdueInstallments } = trpc.installments.getOverdue.useQuery();
+  const { data: installments, refetch: refetchInstallments } =
+    trpc.installmentsBonds.getInstallments.useQuery();
+  const { data: bonds, refetch: refetchBonds } =
+    trpc.installmentsBonds.getBonds.useQuery();
+  const { data: stats } = trpc.installmentsBonds.getStats.useQuery();
 
   // Mutations
-  const createMutation = trpc.installments.create.useMutation({
+  const createInstallment = trpc.installmentsBonds.createInstallment.useMutation({
     onSuccess: () => {
       toast.success("تم إضافة القسط بنجاح");
-      refetch();
-      setIsAddDialogOpen(false);
-      resetForm();
+      refetchInstallments();
+      setIsAddInstallmentOpen(false);
+      resetInstallmentForm();
     },
     onError: (error) => {
-      toast.error(`فشل إضافة القسط: ${error.message}`);
+      toast.error(`خطأ: ${error.message}`);
     },
   });
 
-  const updateMutation = trpc.installments.update.useMutation({
+  const createBond = trpc.installmentsBonds.createBond.useMutation({
     onSuccess: () => {
-      toast.success("تم تحديث القسط بنجاح");
-      refetch();
-      setIsPayDialogOpen(false);
-      setSelectedInstallment(null);
+      toast.success("تم إضافة السند بنجاح");
+      refetchBonds();
+      setIsAddBondOpen(false);
+      resetBondForm();
     },
     onError: (error) => {
-      toast.error(`فشل تحديث القسط: ${error.message}`);
+      toast.error(`خطأ: ${error.message}`);
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      invoiceId: "",
-      customerId: "",
-      amount: "",
-      dueDate: new Date().toISOString().split("T")[0],
+  const uploadExcel = trpc.installmentsBonds.uploadExcel.useMutation({
+    onSuccess: (data) => {
+      toast.success(`تم رفع ${data.count} قسط بنجاح`);
+      refetchInstallments();
+    },
+    onError: (error) => {
+      toast.error(`خطأ في رفع الملف: ${error.message}`);
+    },
+  });
+
+  const uploadPDF = trpc.installmentsBonds.uploadPDF.useMutation({
+    onSuccess: (data) => {
+      toast.success(`تم رفع السند بنجاح`);
+      refetchBonds();
+    },
+    onError: (error) => {
+      toast.error(`خطأ في رفع الملف: ${error.message}`);
+    },
+  });
+
+  const markAsPaid = trpc.installmentsBonds.markInstallmentPaid.useMutation({
+    onSuccess: () => {
+      toast.success("تم تسجيل السداد");
+      refetchInstallments();
+    },
+  });
+
+  const resetInstallmentForm = () => {
+    setInstallmentForm({
+      customerCode: "",
+      customerName: "",
+      customerPhone: "",
+      totalAmount: "",
+      installmentAmount: "",
+      dueDate: "",
       notes: "",
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetBondForm = () => {
+    setBondForm({
+      bondType: "receipt",
+      customerCode: "",
+      customerName: "",
+      amount: "",
+      bondDate: "",
+      description: "",
+      paymentMethod: "cash",
+      referenceNumber: "",
+      notes: "",
+    });
+  };
+
+  const handleInstallmentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const amount = Math.round(parseFloat(formData.amount) * 100);
-
-    createMutation.mutate({
-      invoiceId: parseInt(formData.invoiceId),
-      customerId: parseInt(formData.customerId),
-      amount,
-      dueDate: new Date(formData.dueDate),
-      notes: formData.notes || undefined,
+    createInstallment.mutate({
+      customerCode: installmentForm.customerCode,
+      customerName: installmentForm.customerName,
+      customerPhone: installmentForm.customerPhone,
+      totalAmount: Math.round(parseFloat(installmentForm.totalAmount) * 100),
+      installmentAmount: Math.round(parseFloat(installmentForm.installmentAmount) * 100),
+      dueDate: installmentForm.dueDate,
+      notes: installmentForm.notes,
     });
   };
 
-  const handlePayInstallment = (installment: any) => {
-    setSelectedInstallment(installment);
-    setIsPayDialogOpen(true);
-  };
-
-  const handleConfirmPayment = () => {
-    if (!selectedInstallment) return;
-
-    updateMutation.mutate({
-      id: selectedInstallment.id,
-      status: "paid",
-      paidDate: new Date(),
+  const handleBondSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createBond.mutate({
+      bondType: bondForm.bondType,
+      customerCode: bondForm.customerCode,
+      customerName: bondForm.customerName,
+      amount: Math.round(parseFloat(bondForm.amount) * 100),
+      bondDate: bondForm.bondDate,
+      description: bondForm.description,
+      paymentMethod: bondForm.paymentMethod,
+      referenceNumber: bondForm.referenceNumber,
+      notes: bondForm.notes,
     });
   };
 
-  const installmentsArray = Array.isArray(installments) ? installments : [];
-  const customersArray = Array.isArray(customers) ? customers : [];
-  const invoicesArray = Array.isArray(invoices) ? invoices : [];
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "excel" | "pdf") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const filteredInstallments = installmentsArray.filter((installment) => {
-    const customer = customersArray.find((c) => c.id === installment.customerId);
-    const customerName = customer?.name || "";
-    const invoice = invoicesArray.find((inv) => inv.id === installment.invoiceId);
-    const invoiceNumber = invoice?.invoiceNumber || "";
-    return (
-      customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      if (type === "excel") {
+        uploadExcel.mutate({ fileData: base64, filename: file.name });
+      } else {
+        uploadPDF.mutate({ fileData: base64, filename: file.name });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const filteredInstallments = installments?.filter((inst) => {
+    const matchesSearch =
+      inst.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inst.customerCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inst.installmentNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || inst.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
-  const getCustomerName = (customerId: number) => {
-    return customersArray.find((c) => c.id === customerId)?.name || "غير معروف";
-  };
+  const filteredBonds = bonds?.filter((bond) => {
+    const matchesSearch =
+      bond.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bond.bondNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
 
-  const getInvoiceNumber = (invoiceId: number) => {
-    return invoicesArray.find((inv) => inv.id === invoiceId)?.invoiceNumber || "غير معروف";
-  };
-
-  const getStatusBadge = (status: string, dueDate: Date) => {
-    const now = new Date();
-    const due = new Date(dueDate);
-    
-    if (status === "paid") {
-      return (
-        <span className="px-2 py-1 rounded-md text-xs border bg-green-500/20 text-green-400 border-green-500/30 flex items-center gap-1">
-          <CheckCircle className="w-3 h-3" />
-          مدفوع
-        </span>
-      );
-    } else if (status === "overdue" || (status === "pending" && due < now)) {
-      return (
-        <span className="px-2 py-1 rounded-md text-xs border bg-red-500/20 text-red-400 border-red-500/30 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          متأخر
-        </span>
-      );
-    } else {
-      return (
-        <span className="px-2 py-1 rounded-md text-xs border bg-yellow-500/20 text-yellow-400 border-yellow-500/30 flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          قيد الانتظار
-        </span>
-      );
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "overdue":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  // حساب الإحصائيات
-  const overdueArray = Array.isArray(overdueInstallments) ? overdueInstallments : [];
-  const totalInstallments = installmentsArray.length;
-  const paidInstallments = installmentsArray.filter((i) => i.status === "paid").length;
-  const pendingInstallments = installmentsArray.filter((i) => i.status === "pending").length;
-  const overdueCount = overdueArray.length;
-  const totalAmount = installmentsArray.reduce((sum, inst) => sum + inst.amount, 0);
-  const paidAmount =
-    installmentsArray
-      .filter((i) => i.status === "paid")
-      .reduce((sum, inst) => sum + inst.amount, 0);
-  const pendingAmount =
-    installmentsArray
-      .filter((i) => i.status === "pending")
-      .reduce((sum, inst) => sum + inst.amount, 0);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "مدفوع";
+      case "pending":
+        return "قيد الانتظار";
+      case "overdue":
+        return "متأخر";
+      default:
+        return status;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background p-6" dir="rtl">
+      <div className="container mx-auto max-w-7xl">
         <BackToHome />
-        
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-[#00ff88]" />
-              الأقساط والسندات
-            </h1>
-            <p className="text-gray-400 mt-1">إدارة الأقساط والمدفوعات</p>
-          </div>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="bg-[#00ff88] text-black hover:bg-[#00ff88]/90"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            إضافة قسط
-          </Button>
+
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <Calendar className="h-10 w-10 text-primary" />
+            الأقساط والسندات
+          </h1>
+          <p className="text-muted-foreground">
+            إدارة أقساط العملاء والسندات المالية - مستقلة عن الفواتير
+          </p>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">إجمالي الأقساط</CardDescription>
-              <CardTitle className="text-2xl text-white">{totalInstallments}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">مدفوع</CardDescription>
-              <CardTitle className="text-2xl text-green-400">{paidInstallments}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">قيد الانتظار</CardDescription>
-              <CardTitle className="text-2xl text-yellow-400">{pendingInstallments}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">متأخر</CardDescription>
-              <CardTitle className="text-2xl text-red-400">{overdueCount}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Amount Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">إجمالي المبالغ</CardDescription>
-              <CardTitle className="text-2xl text-[#00ff88]">
-                {(totalAmount / 100).toLocaleString()} ريال
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">المدفوع</CardDescription>
-              <CardTitle className="text-2xl text-green-400">
-                {(paidAmount / 100).toLocaleString()} ريال
-              </CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-gray-400">المتبقي</CardDescription>
-              <CardTitle className="text-2xl text-yellow-400">
-                {(pendingAmount / 100).toLocaleString()} ريال
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-          <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="البحث عن قسط..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10 bg-[#0a0f1a] border-[#00ff88]/30 text-white"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Table */}
-        <Card className="bg-[#0f1729]/50 border-[#00ff88]/20 backdrop-blur">
-          <CardContent className="pt-6">
-            {isLoading ? (
-              <div className="text-center py-8 text-gray-400">جاري التحميل...</div>
-            ) : filteredInstallments && filteredInstallments.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-[#00ff88]/20 hover:bg-[#00ff88]/5">
-                    <TableHead className="text-[#00ff88]">رقم الفاتورة</TableHead>
-                    <TableHead className="text-[#00ff88]">العميل</TableHead>
-                    <TableHead className="text-[#00ff88]">المبلغ</TableHead>
-                    <TableHead className="text-[#00ff88]">تاريخ الاستحقاق</TableHead>
-                    <TableHead className="text-[#00ff88]">تاريخ الدفع</TableHead>
-                    <TableHead className="text-[#00ff88]">الحالة</TableHead>
-                    <TableHead className="text-[#00ff88]">الإجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInstallments.map((installment) => (
-                    <TableRow
-                      key={installment.id}
-                      className="border-[#00ff88]/10 hover:bg-[#00ff88]/5"
-                    >
-                      <TableCell className="text-white font-mono">
-                        {getInvoiceNumber(installment.invoiceId)}
-                      </TableCell>
-                      <TableCell className="text-white">
-                        {getCustomerName(installment.customerId)}
-                      </TableCell>
-                      <TableCell className="text-white">
-                        {(installment.amount / 100).toLocaleString()} ريال
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        {new Date(installment.dueDate).toLocaleDateString("ar-SA")}
-                      </TableCell>
-                      <TableCell className="text-gray-300">
-                        {installment.paidDate
-                          ? new Date(installment.paidDate).toLocaleDateString("ar-SA")
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(installment.status, installment.dueDate)}
-                      </TableCell>
-                      <TableCell>
-                        {installment.status !== "paid" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handlePayInstallment(installment)}
-                            className="bg-[#00ff88] text-black hover:bg-[#00ff88]/90"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            دفع
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                لا توجد أقساط. اضغط "إضافة قسط" للبدء.
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">إجمالي الأقساط</p>
+                  <p className="text-2xl font-bold">{stats?.totalInstallments || 0}</p>
+                </div>
+                <Calendar className="h-8 w-8 text-blue-500" />
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Add Dialog */}
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="bg-[#0f1729] border-[#00ff88]/30 text-white max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-[#00ff88]">إضافة قسط جديد</DialogTitle>
-              <DialogDescription className="text-gray-400">
-                أدخل بيانات القسط الجديد
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invoiceId" className="text-gray-300">
-                    الفاتورة *
-                  </Label>
-                  <Select
-                    value={formData.invoiceId}
-                    onValueChange={(value) => {
-                      const invoice = invoices?.find((inv) => inv.id === parseInt(value));
-                      setFormData({
-                        ...formData,
-                        invoiceId: value,
-                        customerId: invoice?.customerId.toString() || "",
-                      });
-                    }}
-                    required
-                  >
-                    <SelectTrigger className="bg-[#0a0f1a] border-[#00ff88]/30 text-white">
-                      <SelectValue placeholder="اختر فاتورة" />
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">المبلغ المستحق</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {((stats?.totalDue || 0) / 100).toFixed(2)} ر.س
+                  </p>
+                </div>
+                <DollarSign className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">تم السداد</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {((stats?.totalPaid || 0) / 100).toFixed(2)} ر.س
+                  </p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">إجمالي السندات</p>
+                  <p className="text-2xl font-bold">{stats?.totalBonds || 0}</p>
+                </div>
+                <FileText className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="installments">الأقساط</TabsTrigger>
+            <TabsTrigger value="bonds">السندات</TabsTrigger>
+          </TabsList>
+
+          {/* Installments Tab */}
+          <TabsContent value="installments" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>قائمة الأقساط</CardTitle>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => handleFileUpload(e, "excel")}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 ml-2" />
+                      رفع Excel
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Download className="h-4 w-4 ml-2" />
+                      تصدير
+                    </Button>
+                    <Button size="sm" onClick={() => setIsAddInstallmentOpen(true)}>
+                      <Plus className="h-4 w-4 ml-2" />
+                      قسط جديد
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 mb-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="بحث برقم القسط أو اسم العميل..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pr-10"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="الحالة" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0f1729] border-[#00ff88]/30">
-                      {invoices?.map((invoice) => (
-                        <SelectItem
-                          key={invoice.id}
-                          value={invoice.id.toString()}
-                          className="text-white"
-                        >
-                          {invoice.invoiceNumber} - {getCustomerName(invoice.customerId)}
-                        </SelectItem>
-                      ))}
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="pending">قيد الانتظار</SelectItem>
+                      <SelectItem value="paid">مدفوع</SelectItem>
+                      <SelectItem value="overdue">متأخر</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-gray-300">
-                    المبلغ (ريال) *
-                  </Label>
+
+                <div className="space-y-3">
+                  {filteredInstallments?.map((installment) => (
+                    <Card key={installment.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-semibold text-lg">
+                                {installment.installmentNumber}
+                              </h3>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                  installment.status
+                                )}`}
+                              >
+                                {getStatusText(installment.status)}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium">{installment.customerName}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {installment.customerCode}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                <span>{installment.customerPhone || "لا يوجد"}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-bold text-orange-600">
+                                    {(installment.installmentAmount / 100).toFixed(2)} ر.س
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    من {(installment.totalAmount / 100).toFixed(2)} ر.س
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span>
+                                  {new Date(installment.dueDate).toLocaleDateString("ar-SA")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {installment.status === "pending" && (
+                            <Button
+                              size="sm"
+                              onClick={() => markAsPaid.mutate({ id: installment.id })}
+                            >
+                              تسجيل السداد
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {filteredInstallments?.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>لا توجد أقساط</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Bonds Tab */}
+          <TabsContent value="bonds" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>قائمة السندات</CardTitle>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline">
+                      <Upload className="h-4 w-4 ml-2" />
+                      رفع PDF
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Download className="h-4 w-4 ml-2" />
+                      تصدير
+                    </Button>
+                    <Button size="sm" onClick={() => setIsAddBondOpen(true)}>
+                      <Plus className="h-4 w-4 ml-2" />
+                      سند جديد
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {filteredBonds?.map((bond) => (
+                    <Card key={bond.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <FileText className="h-5 w-5 text-purple-500" />
+                              <h3 className="font-semibold text-lg">{bond.bondNumber}</h3>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  bond.bondType === "receipt"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {bond.bondType === "receipt" ? "سند قبض" : "سند صرف"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">العميل: </span>
+                                <span className="font-medium">
+                                  {bond.customerName || "غير محدد"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">المبلغ: </span>
+                                <span className="font-bold text-purple-600">
+                                  {(bond.amount / 100).toFixed(2)} ر.س
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">التاريخ: </span>
+                                <span className="font-medium">
+                                  {new Date(bond.bondDate).toLocaleDateString("ar-SA")}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">الطريقة: </span>
+                                <span className="font-medium">{bond.paymentMethod}</span>
+                              </div>
+                            </div>
+                            {bond.description && (
+                              <p className="text-sm text-muted-foreground mt-2">
+                                {bond.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {filteredBonds?.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>لا توجد سندات</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Add Installment Dialog */}
+        <Dialog open={isAddInstallmentOpen} onOpenChange={setIsAddInstallmentOpen}>
+          <DialogContent className="max-w-2xl" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة قسط جديد</DialogTitle>
+              <DialogDescription>
+                أدخل بيانات القسط - مستقل عن الفواتير
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleInstallmentSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>كود العميل</Label>
+                    <Input
+                      value={installmentForm.customerCode}
+                      onChange={(e) =>
+                        setInstallmentForm({ ...installmentForm, customerCode: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>اسم العميل</Label>
+                    <Input
+                      value={installmentForm.customerName}
+                      onChange={(e) =>
+                        setInstallmentForm({ ...installmentForm, customerName: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>رقم الهاتف</Label>
                   <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    value={installmentForm.customerPhone}
+                    onChange={(e) =>
+                      setInstallmentForm({ ...installmentForm, customerPhone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>إجمالي المبلغ</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={installmentForm.totalAmount}
+                      onChange={(e) =>
+                        setInstallmentForm({ ...installmentForm, totalAmount: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>قيمة القسط</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={installmentForm.installmentAmount}
+                      onChange={(e) =>
+                        setInstallmentForm({
+                          ...installmentForm,
+                          installmentAmount: e.target.value,
+                        })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>تاريخ الاستحقاق</Label>
+                  <Input
+                    type="date"
+                    value={installmentForm.dueDate}
+                    onChange={(e) =>
+                      setInstallmentForm({ ...installmentForm, dueDate: e.target.value })
+                    }
                     required
-                    className="bg-[#0a0f1a] border-[#00ff88]/30 text-white"
+                  />
+                </div>
+                <div>
+                  <Label>ملاحظات</Label>
+                  <Textarea
+                    value={installmentForm.notes}
+                    onChange={(e) =>
+                      setInstallmentForm({ ...installmentForm, notes: e.target.value })
+                    }
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dueDate" className="text-gray-300">
-                  تاريخ الاستحقاق *
-                </Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                  required
-                  className="bg-[#0a0f1a] border-[#00ff88]/30 text-white"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-gray-300">
-                  ملاحظات
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="bg-[#0a0f1a] border-[#00ff88]/30 text-white min-h-[80px]"
-                />
-              </div>
-
               <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAddDialogOpen(false)}
-                  className="border-[#00ff88]/30 text-white hover:bg-[#00ff88]/10"
-                >
+                <Button type="button" variant="outline" onClick={() => setIsAddInstallmentOpen(false)}>
                   إلغاء
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="bg-[#00ff88] text-black hover:bg-[#00ff88]/90"
-                >
-                  {createMutation.isPending ? "جاري الإضافة..." : "إضافة"}
-                </Button>
+                <Button type="submit">إضافة القسط</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
 
-        {/* Pay Dialog */}
-        <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
-          <DialogContent className="bg-[#0f1729] border-[#00ff88]/30 text-white">
+        {/* Add Bond Dialog */}
+        <Dialog open={isAddBondOpen} onOpenChange={setIsAddBondOpen}>
+          <DialogContent className="max-w-2xl" dir="rtl">
             <DialogHeader>
-              <DialogTitle className="text-[#00ff88]">تأكيد الدفع</DialogTitle>
-              <DialogDescription className="text-gray-400">
-                هل أنت متأكد من دفع هذا القسط؟
-              </DialogDescription>
+              <DialogTitle>إضافة سند جديد</DialogTitle>
+              <DialogDescription>أدخل بيانات السند المالي</DialogDescription>
             </DialogHeader>
-            {selectedInstallment && (
-              <div className="space-y-3 py-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">رقم الفاتورة:</span>
-                  <span className="text-white font-mono">
-                    {getInvoiceNumber(selectedInstallment.invoiceId)}
-                  </span>
+            <form onSubmit={handleBondSubmit}>
+              <div className="grid gap-4 py-4">
+                <div>
+                  <Label>نوع السند</Label>
+                  <Select
+                    value={bondForm.bondType}
+                    onValueChange={(value) => setBondForm({ ...bondForm, bondType: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="receipt">سند قبض</SelectItem>
+                      <SelectItem value="payment">سند صرف</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">العميل:</span>
-                  <span className="text-white">
-                    {getCustomerName(selectedInstallment.customerId)}
-                  </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>كود العميل</Label>
+                    <Input
+                      value={bondForm.customerCode}
+                      onChange={(e) =>
+                        setBondForm({ ...bondForm, customerCode: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>اسم العميل</Label>
+                    <Input
+                      value={bondForm.customerName}
+                      onChange={(e) =>
+                        setBondForm({ ...bondForm, customerName: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">المبلغ:</span>
-                  <span className="text-[#00ff88] font-bold">
-                    {(selectedInstallment.amount / 100).toLocaleString()} ريال
-                  </span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>المبلغ</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={bondForm.amount}
+                      onChange={(e) => setBondForm({ ...bondForm, amount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>تاريخ السند</Label>
+                    <Input
+                      type="date"
+                      value={bondForm.bondDate}
+                      onChange={(e) => setBondForm({ ...bondForm, bondDate: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">تاريخ الاستحقاق:</span>
-                  <span className="text-white">
-                    {new Date(selectedInstallment.dueDate).toLocaleDateString("ar-SA")}
-                  </span>
+                <div>
+                  <Label>الوصف</Label>
+                  <Input
+                    value={bondForm.description}
+                    onChange={(e) => setBondForm({ ...bondForm, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>طريقة الدفع</Label>
+                    <Select
+                      value={bondForm.paymentMethod}
+                      onValueChange={(value) =>
+                        setBondForm({ ...bondForm, paymentMethod: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">نقدي</SelectItem>
+                        <SelectItem value="bank_transfer">تحويل بنكي</SelectItem>
+                        <SelectItem value="check">شيك</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>رقم المرجع</Label>
+                    <Input
+                      value={bondForm.referenceNumber}
+                      onChange={(e) =>
+                        setBondForm({ ...bondForm, referenceNumber: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>ملاحظات</Label>
+                  <Textarea
+                    value={bondForm.notes}
+                    onChange={(e) => setBondForm({ ...bondForm, notes: e.target.value })}
+                  />
                 </div>
               </div>
-            )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsPayDialogOpen(false)}
-                className="border-[#00ff88]/30 text-white hover:bg-[#00ff88]/10"
-              >
-                إلغاء
-              </Button>
-              <Button
-                onClick={handleConfirmPayment}
-                disabled={updateMutation.isPending}
-                className="bg-[#00ff88] text-black hover:bg-[#00ff88]/90"
-              >
-                {updateMutation.isPending ? "جاري الدفع..." : "تأكيد الدفع"}
-              </Button>
-            </DialogFooter>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddBondOpen(false)}>
+                  إلغاء
+                </Button>
+                <Button type="submit">إضافة السند</Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
