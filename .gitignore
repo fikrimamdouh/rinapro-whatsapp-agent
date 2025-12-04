@@ -13,11 +13,8 @@ build/
 .next/
 .nuxt/
 
-# Database
-*.db
-*.db-shm
-*.db-wal
-data/*.db
+# Database (local development only)
+# Note: In production, database is stored in Railway's persistent storage
 
 # Logs
 *.log

@@ -25,6 +25,14 @@ export async function initDatabase() {
   }
 
   try {
+    // Check if PostgreSQL
+    if (connectionString.startsWith("postgres://") || connectionString.startsWith("postgresql://")) {
+      console.log("[DB] PostgreSQL detected - using SQLite with persistent storage");
+      sqliteDb.initSQLite();
+      usingSQLite = true;
+      return null;
+    }
+    
     pool = mysql.createPool(connectionString);
     
     // Test connection
