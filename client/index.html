@@ -16,7 +16,55 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading screen while app initializes -->
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Cairo', sans-serif;
+        color: white;
+        z-index: 9999;
+      ">
+        <div style="text-align: center;">
+          <div style="
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(74, 222, 128, 0.2);
+            border-top-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px;
+          "></div>
+          <h1 style="
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 12px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          ">RinaPro ERP</h1>
+          <p style="
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0;
+          ">جاري التحميل...</p>
+        </div>
+        <style>
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 
