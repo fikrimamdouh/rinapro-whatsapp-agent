@@ -16,6 +16,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: false,
+    allowedHosts: [".gitpod.dev", ".gitpod.io"],
     hmr: {
       clientPort: 5173,
     },
