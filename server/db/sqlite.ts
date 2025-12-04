@@ -24,6 +24,36 @@ export function initSQLite(): Database.Database {
   
   // Create tables
   sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS companies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      logo TEXT,
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      taxNumber TEXT,
+      welcomeMessage TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS branches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      companyId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      phone TEXT,
+      address TEXT,
+      whatsappGroupId TEXT,
+      whatsappGroupName TEXT,
+      managerPhone TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (companyId) REFERENCES companies(id)
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       settingKey TEXT UNIQUE NOT NULL,

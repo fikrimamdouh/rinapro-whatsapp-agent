@@ -28,6 +28,7 @@ import Fleet from "./pages/Fleet";
 import Finance from "./pages/Finance";
 import Analytics from "./pages/Analytics";
 import AIAssistant from "./pages/AIAssistant";
+import Companies from "./pages/Companies";
 
 function Router() {
   return (
@@ -35,6 +36,7 @@ function Router() {
       <Route path={"/"} component={Dashboard} />
       <Route path={"/ai"} component={AIAssistant} />
       <Route path={"/whatsapp"} component={WhatsApp} />
+      <Route path={"/companies"} component={Companies} />
       <Route path={"/customers"} component={Customers} />
       <Route path={"/customer-balances"} component={CustomerBalances} />
       <Route path={"/suppliers"} component={Suppliers} />

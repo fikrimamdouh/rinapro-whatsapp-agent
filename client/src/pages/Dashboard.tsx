@@ -32,6 +32,10 @@ export default function Dashboard() {
   const { data: invoices } = trpc.invoices.list.useQuery();
   const { data: overdueInstallments } = trpc.installments.getOverdue.useQuery();
   const { data: whatsappStatus } = trpc.whatsapp.status.useQuery();
+  const { data: settings } = trpc.settings.list.useQuery();
+  
+  const companyName = settings?.find(s => s.settingKey === "COMPANY_NAME")?.settingValue || "RinaPro";
+  const welcomeMessage = settings?.find(s => s.settingKey === "WELCOME_MESSAGE")?.settingValue || "مرحباً بك في نظام إدارة الشركة";
 
   const stats = [
     {
@@ -72,10 +76,10 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold neon-green mb-2">
-            RinaPro – Smart Collection Module
+            {companyName}
           </h1>
           <p className="text-muted-foreground">
-            مرحباً {user?.name || "المستخدم"} - لوحة التحكم الرئيسية
+            {welcomeMessage}
           </p>
         </div>
 

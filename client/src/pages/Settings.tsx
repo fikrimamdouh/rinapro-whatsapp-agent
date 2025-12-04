@@ -24,6 +24,7 @@ export default function Settings() {
   const [apiToken, setApiToken] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyLogo, setCompanyLogo] = useState("");
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
 
@@ -59,12 +60,14 @@ export default function Settings() {
       const token = settings.find((s) => s.settingKey === "API_TOKEN");
       const company = settings.find((s) => s.settingKey === "COMPANY_NAME");
       const logo = settings.find((s) => s.settingKey === "COMPANY_LOGO");
+      const welcome = settings.find((s) => s.settingKey === "WELCOME_MESSAGE");
 
       if (manager) setManagerNumber(manager.settingValue || "");
       if (group) setGroupName(group.settingValue || "");
       if (token) setApiToken(token.settingValue || "");
       if (company) setCompanyName(company.settingValue || "");
       if (logo) setCompanyLogo(logo.settingValue || "");
+      if (welcome) setWelcomeMessage(welcome.settingValue || "");
     }
   }, [settings]);
 
@@ -92,6 +95,12 @@ export default function Settings() {
         key: "COMPANY_LOGO",
         value: companyLogo,
         description: "شعار الشركة (URL)",
+      });
+
+      await setSettingMutation.mutateAsync({
+        key: "WELCOME_MESSAGE",
+        value: welcomeMessage,
+        description: "رسالة الترحيب",
       });
 
       await setSettingMutation.mutateAsync({
@@ -193,6 +202,20 @@ export default function Settings() {
               />
               <p className="text-sm text-muted-foreground mt-1">
                 رابط شعار الشركة (سيظهر في التقارير)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="welcome-message">رسالة الترحيب</Label>
+              <Input
+                id="welcome-message"
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                placeholder="مرحباً بك في نظام إدارة الشركة"
+                className="glass"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                رسالة الترحيب التي تظهر في لوحة التحكم
               </p>
             </div>
 
