@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Play, Square, RefreshCw, TestTube, Globe, LogIn, Database } from "lucide-react";
 import { toast } from "sonner";
+import { BackToHome } from "@/components/BackToHome";
 
 export default function AgentPage() {
   const [isRunning, setIsRunning] = useState(false);
@@ -120,6 +121,8 @@ export default function AgentPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        <BackToHome />
+        
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
