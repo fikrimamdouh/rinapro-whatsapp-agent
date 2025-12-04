@@ -55,59 +55,31 @@ export default function Purchases() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  // Sample data
-  const [purchaseOrders] = useState<PurchaseOrder[]>([
-    {
-      id: "1",
-      orderNumber: "PO-2024-001",
-      supplier: "شركة التوريدات المتحدة",
-      date: "2024-12-01",
-      totalAmount: 15000,
-      status: "approved",
-      items: 5
-    },
-    {
-      id: "2",
-      orderNumber: "PO-2024-002",
-      supplier: "مؤسسة النور التجارية",
-      date: "2024-12-03",
-      totalAmount: 8500,
-      status: "pending",
-      items: 3
-    },
-    {
-      id: "3",
-      orderNumber: "PO-2024-003",
-      supplier: "شركة الأمل للمواد",
-      date: "2024-12-04",
-      totalAmount: 22000,
-      status: "received",
-      items: 8
-    }
-  ]);
+  // Empty data - will be populated from database
+  const [purchaseOrders] = useState<PurchaseOrder[]>([]);
 
   const stats = [
     {
       title: "إجمالي المشتريات",
-      value: "45,500 ر.س",
+      value: "0 ر.س",
       icon: DollarSign,
       color: "text-green-500"
     },
     {
       title: "أوامر الشراء",
-      value: "3",
+      value: "0",
       icon: FileText,
       color: "text-blue-500"
     },
     {
       title: "قيد الانتظار",
-      value: "1",
+      value: "0",
       icon: Package,
       color: "text-yellow-500"
     },
     {
       title: "تم الاستلام",
-      value: "1",
+      value: "0",
       icon: TrendingUp,
       color: "text-purple-500"
     }

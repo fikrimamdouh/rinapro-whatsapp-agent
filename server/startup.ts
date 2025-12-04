@@ -16,8 +16,8 @@ export async function startup(): Promise<void> {
     await initDatabase();
     console.log("[Startup] Database initialized");
     
-    // Seed sample data for new tables
-    seedNewTables();
+    // Seed data disabled - using real data only
+    // seedNewTables();
   } catch (error) {
     console.error("[Startup] Database initialization failed:", error);
   }
