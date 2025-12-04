@@ -14,9 +14,11 @@ import {
   LogOut
 } from "lucide-react";
 import { toast } from "sonner";
+import QRCodeLib from "qrcode";
 
 export function ConnectionStatus() {
   const [qrCode, setQrCode] = useState<string>("");
+  const [qrCodeImage, setQrCodeImage] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
 
   // جلب حالة الاتصال
@@ -78,10 +80,28 @@ export function ConnectionStatus() {
     if (status?.qrCode) {
       setQrCode(status.qrCode);
       setIsConnecting(true);
+      
+      // تحويل QR Code النصي إلى صورة
+      QRCodeLib.toDataURL(status.qrCode, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+        .then((url) => {
+          setQrCodeImage(url);
+        })
+        .catch((err) => {
+          console.error('Error generating QR code:', err);
+          toast.error('فشل في إنشاء QR Code');
+        });
     }
     if (status?.connected) {
       setIsConnecting(false);
       setQrCode("");
+      setQrCodeImage("");
     }
   }, [status]);
 
@@ -165,11 +185,17 @@ export function ConnectionStatus() {
                 <QrCode className="w-6 h-6" />
                 <h3 className="text-xl font-bold">امسح QR Code</h3>
               </div>
-              <img
-                src={qrCode}
-                alt="WhatsApp QR Code"
-                className="w-64 h-64 border-4 border-green-500 rounded-lg"
-              />
+              {qrCodeImage ? (
+                <img
+                  src={qrCodeImage}
+                  alt="WhatsApp QR Code"
+                  className="w-64 h-64 border-4 border-green-500 rounded-lg"
+                />
+              ) : (
+                <div className="w-64 h-64 border-4 border-green-500 rounded-lg flex items-center justify-center bg-gray-100">
+                  <Loader2 className="w-12 h-12 animate-spin text-green-600" />
+                </div>
+              )}
               <div className="text-center text-sm text-gray-600 space-y-1">
                 <p>1. افتح WhatsApp على هاتفك</p>
                 <p>2. اذهب إلى: الإعدادات → الأجهزة المرتبطة</p>
