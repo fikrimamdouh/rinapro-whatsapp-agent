@@ -588,3 +588,10 @@ export function resetAllData(): void {
   sqliteDb.prepare("DELETE FROM whatsappStats").run();
   sqliteDb.prepare("DELETE FROM eventLogs").run();
 }
+
+export function db(): Database.Database {
+  if (!sqliteDb) {
+    throw new Error("SQLite database not initialized. Call initSQLite() first.");
+  }
+  return sqliteDb;
+}

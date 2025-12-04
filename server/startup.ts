@@ -6,6 +6,7 @@
 import { initDatabase } from "./db";
 import { whatsappService } from "./whatsapp/whatsappService";
 import { initEvents } from "./events/initEvents";
+import { seedNewTables } from "./db/seedData";
 
 export async function startup(): Promise<void> {
   console.log("[Startup] Initializing RinaPro ERP...");
@@ -14,6 +15,9 @@ export async function startup(): Promise<void> {
     console.log("[Startup] Connecting to database...");
     await initDatabase();
     console.log("[Startup] Database initialized");
+    
+    // Seed sample data for new tables
+    seedNewTables();
   } catch (error) {
     console.error("[Startup] Database initialization failed:", error);
   }
