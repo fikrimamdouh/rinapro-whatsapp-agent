@@ -1,59 +1,61 @@
 import { z } from "zod";
-import { publicProcedure, router } from "../_core/trpc";
-import { getSQLiteDb } from "../db/sqlite";
+import { router, publicProcedure } from "../_core/trpc";
+import { db } from "../db/sqlite";
 
 export const logisticsRouter = router({
-  list: publicProcedure.query(async () => {
-    const db = await getSQLiteDb();
-    const logistics = await db.all(`
-      SELECT * FROM logistics 
-      ORDER BY date DESC 
-      LIMIT 100
+  getShipments: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM shipments 
+      ORDER BY createdAt DESC
     `);
-    return logistics || [];
+    return stmt.all();
   }),
 
-  create: publicProcedure
+  getDrivers: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM drivers 
+      WHERE status = 'active'
+      ORDER BY name ASC
+    `);
+    return stmt.all();
+  }),
+
+  getVehicles: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM vehicles 
+      ORDER BY plateNumber ASC
+    `);
+    return stmt.all();
+  }),
+
+  getStats: publicProcedure.query(() => {
+    const totalShipments = db().prepare(`SELECT COUNT(*) as count FROM shipments`).get() as any;
+    const inTransit = db().prepare(`SELECT COUNT(*) as count FROM shipments WHERE status = 'in_transit'`).get() as any;
+    const delivered = db().prepare(`SELECT COUNT(*) as count FROM shipments WHERE status = 'delivered'`).get() as any;
+    const totalCost = db().prepare(`SELECT SUM(totalCost) as sum FROM shipments`).get() as any;
+
+    return {
+      totalShipments: totalShipments.count || 0,
+      inTransit: inTransit.count || 0,
+      delivered: delivered.count || 0,
+      totalCost: totalCost.sum || 0,
+    };
+  }),
+
+  updateShipmentStatus: publicProcedure
     .input(
       z.object({
-        vehicleId: z.string(),
-        driverId: z.string().optional(),
-        route: z.string(),
-        distance: z.number().optional(),
-        fuelCost: z.number().optional(),
-        date: z.string(),
-        notes: z.string().optional(),
+        id: z.number(),
+        status: z.enum(["pending", "in_transit", "delivered", "cancelled"]),
       })
     )
-    .mutation(async ({ input }) => {
-      const db = await getSQLiteDb();
-      const result = await db.run(
-        `INSERT INTO logistics (vehicle_id, driver_id, route, distance, fuel_cost, date, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-        [
-          input.vehicleId,
-          input.driverId || null,
-          input.route,
-          input.distance || 0,
-          input.fuelCost || 0,
-          input.date,
-          input.notes || '',
-        ]
-      );
-      return { id: result.lastID, success: true };
-    }),
-
-  delete: publicProcedure
-    .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
-      const db = await getSQLiteDb();
-      await db.run(`DELETE FROM logistics WHERE id = ?`, [input.id]);
+    .mutation(({ input }) => {
+      const stmt = db().prepare(`
+        UPDATE shipments 
+        SET status = ?, updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(input.status, input.id);
       return { success: true };
     }),
-
-  deleteAll: publicProcedure.mutation(async () => {
-    const db = await getSQLiteDb();
-    await db.run(`DELETE FROM logistics`);
-    return { success: true };
-  }),
 });

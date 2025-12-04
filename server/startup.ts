@@ -26,26 +26,9 @@ export async function startup(): Promise<void> {
     console.error("[Startup] Event system initialization failed:", error);
   }
 
-  try {
-    console.log("[Startup] Initializing WhatsApp...");
-    
-    whatsappService.on("connected", () => {
-      console.log("[Startup] WhatsApp connected successfully");
-    });
-
-    whatsappService.on("disconnected", () => {
-      console.log("[Startup] WhatsApp disconnected");
-    });
-
-    whatsappService.on("qr", (qr: string) => {
-      console.log("[Startup] WhatsApp QR code generated");
-    });
-
-    await whatsappService.initialize();
-    console.log("[Startup] WhatsApp service initialized");
-  } catch (error) {
-    console.error("[Startup] WhatsApp initialization failed:", error);
-  }
+  // WhatsApp temporarily disabled due to connection issues
+  // Will be replaced with WhatsApp Business API
+  console.log("[Startup] WhatsApp service disabled (pending Business API setup)");
 
   console.log("[Startup] RinaPro ERP started successfully!");
 }

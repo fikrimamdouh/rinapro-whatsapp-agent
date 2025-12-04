@@ -81,7 +81,7 @@ export default function ChartOfAccounts() {
             disabled={isLoading}
             className="border-blue-500/30 hover:bg-blue-500/10"
           >
-            <RefreshCw className={\`ml-2 h-4 w-4 \${isLoading ? 'animate-spin' : ''}\`} />
+            <RefreshCw className={`ml-2 h-4 w-4 \${isLoading ? 'animate-spin' : ''}`} />
             تحديث
           </Button>
 

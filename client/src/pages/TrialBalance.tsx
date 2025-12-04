@@ -73,7 +73,7 @@ export default function TrialBalance() {
   });
 
   const formatCurrency = (amount: number) => {
-    return \`\${(amount / 100).toFixed(2)} ر.س\`;
+    return `${(amount / 100).toFixed(2)} ر.س`;
   };
 
   const handleRefresh = async () => {
@@ -102,7 +102,7 @@ export default function TrialBalance() {
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = \`ميزان_المراجعة_\${new Date().toISOString().split('T')[0]}.csv\`;
+    link.download = `ميزان_المراجعة_\${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     
     toast.success("تم تصدير البيانات بنجاح");
@@ -165,7 +165,7 @@ export default function TrialBalance() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">الفرق</p>
-                  <p className={\`text-2xl font-bold \${Math.abs(totalDebit - totalCredit) < 100 ? 'text-green-400' : 'text-red-400'}\`}>
+                  <p className={`text-2xl font-bold \${Math.abs(totalDebit - totalCredit) < 100 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatCurrency(Math.abs(totalDebit - totalCredit))}
                   </p>
                 </div>
@@ -182,7 +182,7 @@ export default function TrialBalance() {
             disabled={isLoading}
             className="border-blue-500/30 hover:bg-blue-500/10"
           >
-            <RefreshCw className={\`ml-2 h-4 w-4 \${isLoading ? 'animate-spin' : ''}\`} />
+            <RefreshCw className={`ml-2 h-4 w-4 \${isLoading ? 'animate-spin' : ''}`} />
             تحديث البيانات
           </Button>
 
@@ -249,18 +249,18 @@ export default function TrialBalance() {
                   </TableHeader>
                   <TableBody>
                     {filteredAccounts.map((account, index) => (
-                      <TableRow key={\`\${account.code}-\${index}\`}>
+                      <TableRow key={`\${account.code}-\${index}`}>
                         <TableCell className="font-mono text-sm">{account.code}</TableCell>
                         <TableCell className="font-medium">{account.name}</TableCell>
                         <TableCell>
-                          <span className={\`px-2 py-1 rounded text-xs \${
+                          <span className={`px-2 py-1 rounded text-xs \${
                             account.type === 'عميل' ? 'bg-blue-500/20 text-blue-400' :
                             account.type === 'أصول' ? 'bg-green-500/20 text-green-400' :
                             account.type === 'خصوم' ? 'bg-red-500/20 text-red-400' :
                             account.type === 'إيرادات' ? 'bg-purple-500/20 text-purple-400' :
                             account.type === 'مصروفات' ? 'bg-orange-500/20 text-orange-400' :
                             'bg-gray-500/20 text-gray-400'
-                          }\`}>
+                          }`}>
                             {account.type}
                           </span>
                         </TableCell>

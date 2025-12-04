@@ -1,57 +1,61 @@
 import { z } from "zod";
-import { publicProcedure, router } from "../_core/trpc";
-import { getSQLiteDb } from "../db/sqlite";
+import { router, publicProcedure } from "../_core/trpc";
+import { db } from "../db/sqlite";
 
 export const maintenanceRouter = router({
-  list: publicProcedure.query(async () => {
-    const db = await getSQLiteDb();
-    const maintenance = await db.all(`
-      SELECT * FROM maintenance 
-      ORDER BY date DESC 
-      LIMIT 100
+  getRequests: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM maintenanceRequests 
+      ORDER BY createdAt DESC
     `);
-    return maintenance || [];
+    return stmt.all();
   }),
 
-  create: publicProcedure
+  getTechnicians: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM technicians 
+      WHERE status = 'active'
+      ORDER BY name ASC
+    `);
+    return stmt.all();
+  }),
+
+  getSpareParts: publicProcedure.query(() => {
+    const stmt = db().prepare(`
+      SELECT * FROM spareParts 
+      ORDER BY partName ASC
+    `);
+    return stmt.all();
+  }),
+
+  getStats: publicProcedure.query(() => {
+    const totalRequests = db().prepare(`SELECT COUNT(*) as count FROM maintenanceRequests`).get() as any;
+    const inProgress = db().prepare(`SELECT COUNT(*) as count FROM maintenanceRequests WHERE status = 'in_progress'`).get() as any;
+    const completed = db().prepare(`SELECT COUNT(*) as count FROM maintenanceRequests WHERE status = 'completed'`).get() as any;
+    const totalCost = db().prepare(`SELECT SUM(actualCost) as sum FROM maintenanceRequests WHERE actualCost > 0`).get() as any;
+
+    return {
+      totalRequests: totalRequests.count || 0,
+      inProgress: inProgress.count || 0,
+      completed: completed.count || 0,
+      totalCost: totalCost.sum || 0,
+    };
+  }),
+
+  updateRequestStatus: publicProcedure
     .input(
       z.object({
-        vehicleId: z.string(),
-        type: z.string(),
-        description: z.string(),
-        cost: z.number(),
-        date: z.string(),
-        notes: z.string().optional(),
+        id: z.number(),
+        status: z.enum(["pending", "in_progress", "completed", "cancelled"]),
       })
     )
-    .mutation(async ({ input }) => {
-      const db = await getSQLiteDb();
-      const result = await db.run(
-        `INSERT INTO maintenance (vehicle_id, type, description, cost, date, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
-        [
-          input.vehicleId,
-          input.type,
-          input.description,
-          input.cost,
-          input.date,
-          input.notes || '',
-        ]
-      );
-      return { id: result.lastID, success: true };
-    }),
-
-  delete: publicProcedure
-    .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
-      const db = await getSQLiteDb();
-      await db.run(`DELETE FROM maintenance WHERE id = ?`, [input.id]);
+    .mutation(({ input }) => {
+      const stmt = db().prepare(`
+        UPDATE maintenanceRequests 
+        SET status = ?, updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(input.status, input.id);
       return { success: true };
     }),
-
-  deleteAll: publicProcedure.mutation(async () => {
-    const db = await getSQLiteDb();
-    await db.run(`DELETE FROM maintenance`);
-    return { success: true };
-  }),
 });

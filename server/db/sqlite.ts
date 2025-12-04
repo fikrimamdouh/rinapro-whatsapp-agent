@@ -247,6 +247,165 @@ export function initSQLite(): Database.Database {
       generatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS shipments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shipmentNumber TEXT UNIQUE NOT NULL,
+      customerId INTEGER,
+      customerName TEXT,
+      driverId INTEGER,
+      vehicleId INTEGER,
+      status TEXT DEFAULT 'pending',
+      origin TEXT,
+      destination TEXT,
+      scheduledDate DATETIME,
+      deliveredDate DATETIME,
+      totalCost INTEGER DEFAULT 0,
+      distance INTEGER DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS drivers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      licenseNumber TEXT,
+      licenseExpiry DATETIME,
+      status TEXT DEFAULT 'active',
+      rating INTEGER DEFAULT 0,
+      totalDeliveries INTEGER DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS vehicles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plateNumber TEXT UNIQUE NOT NULL,
+      model TEXT,
+      year INTEGER,
+      capacity INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      lastMaintenanceDate DATETIME,
+      nextMaintenanceDate DATETIME,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS maintenanceRequests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      requestNumber TEXT UNIQUE NOT NULL,
+      assetType TEXT NOT NULL,
+      assetId INTEGER,
+      assetName TEXT,
+      issueDescription TEXT NOT NULL,
+      priority TEXT DEFAULT 'medium',
+      status TEXT DEFAULT 'pending',
+      technicianId INTEGER,
+      scheduledDate DATETIME,
+      completedDate DATETIME,
+      estimatedCost INTEGER DEFAULT 0,
+      actualCost INTEGER DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS technicians (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      specialization TEXT,
+      status TEXT DEFAULT 'active',
+      rating INTEGER DEFAULT 0,
+      totalJobs INTEGER DEFAULT 0,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS spareParts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      partNumber TEXT UNIQUE NOT NULL,
+      partName TEXT NOT NULL,
+      category TEXT,
+      quantity INTEGER DEFAULT 0,
+      unitPrice INTEGER DEFAULT 0,
+      minStockLevel INTEGER DEFAULT 0,
+      supplier TEXT,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      paymentNumber TEXT UNIQUE NOT NULL,
+      paymentType TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      paymentDate DATETIME NOT NULL,
+      paymentMethod TEXT,
+      referenceNumber TEXT,
+      customerId INTEGER,
+      supplierId INTEGER,
+      description TEXT,
+      status TEXT DEFAULT 'completed',
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      receiptNumber TEXT UNIQUE NOT NULL,
+      receiptType TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      receiptDate DATETIME NOT NULL,
+      paymentMethod TEXT,
+      referenceNumber TEXT,
+      customerId INTEGER,
+      description TEXT,
+      status TEXT DEFAULT 'completed',
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS bankTransactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transactionNumber TEXT UNIQUE NOT NULL,
+      bankName TEXT NOT NULL,
+      accountNumber TEXT,
+      transactionType TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      transactionDate DATETIME NOT NULL,
+      description TEXT,
+      reconciled INTEGER DEFAULT 0,
+      reconciledDate DATETIME,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS checks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      checkNumber TEXT UNIQUE NOT NULL,
+      checkType TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      issueDate DATETIME NOT NULL,
+      dueDate DATETIME NOT NULL,
+      bankName TEXT,
+      customerId INTEGER,
+      supplierId INTEGER,
+      status TEXT DEFAULT 'pending',
+      clearedDate DATETIME,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   console.log("[SQLite] Database initialized at:", dbPath);

@@ -28,7 +28,7 @@ export default function AIAssistant() {
       setQuestion("");
     },
     onError: (error) => {
-      toast.error(\`خطأ: \${error.message}\`);
+      toast.error(`خطأ: \${error.message}`);
     },
   });
 
@@ -94,14 +94,14 @@ export default function AIAssistant() {
                 {messages.map((msg, i) => (
                   <div
                     key={i}
-                    className={\`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}\`}
+                    className={`flex \${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={\`max-w-[80%] p-4 rounded-lg \${
+                      className={`max-w-[80%] p-4 rounded-lg \${
                         msg.role === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-800 text-white'
-                      }\`}
+                      }`}
                     >
                       {msg.content}
                     </div>
