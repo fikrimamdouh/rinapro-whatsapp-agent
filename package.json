@@ -6,8 +6,8 @@
     "dev": "concurrently -n server,client \"npm run server\" \"npm run client\"",
     "server": "tsx watch server/_core/index.ts",
     "client": "vite",
-    "build": "vite build && tsc --project tsconfig.server.json",
-    "start": "node dist/server/_core/index.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production tsx server/_core/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate"
