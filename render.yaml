@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: rinapro-whatsapp-agent
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OAUTH_SERVER_URL
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true
