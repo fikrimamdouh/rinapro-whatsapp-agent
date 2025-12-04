@@ -27,11 +27,13 @@ import TrialBalance from "./pages/TrialBalance";
 import Fleet from "./pages/Fleet";
 import Finance from "./pages/Finance";
 import Analytics from "./pages/Analytics";
+import AIAssistant from "./pages/AIAssistant";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Dashboard} />
+      <Route path={"/ai"} component={AIAssistant} />
       <Route path={"/whatsapp"} component={WhatsApp} />
       <Route path={"/customers"} component={Customers} />
       <Route path={"/customer-balances"} component={CustomerBalances} />

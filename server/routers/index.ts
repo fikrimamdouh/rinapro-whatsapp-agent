@@ -21,6 +21,7 @@ import { uploadsRouter } from "./uploads";
 import { purchasesRouter } from "./purchases";
 import { maintenanceRouter } from "./maintenance";
 import { logisticsRouter } from "./logistics";
+import { aiRouter } from "./ai";
 
 export const appRouter = router({
   system: systemRouter,
@@ -40,6 +41,7 @@ export const appRouter = router({
   purchases: purchasesRouter,
   maintenance: maintenanceRouter,
   logistics: logisticsRouter,
+  ai: aiRouter,
 });
 
 export type AppRouter = typeof appRouter;
