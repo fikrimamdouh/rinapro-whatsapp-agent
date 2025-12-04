@@ -30,35 +30,11 @@ export async function startup(): Promise<void> {
     console.error("[Startup] Event system initialization failed:", error);
   }
 
-  // Initialize WhatsApp in background (don't block server startup)
-  console.log("[Startup] WhatsApp will initialize in background...");
-  
-  // Run WhatsApp initialization asynchronously
-  setTimeout(async () => {
-    try {
-      console.log("[Startup] Initializing WhatsApp...");
-      
-      whatsappService.on("connected", () => {
-        console.log("[Startup] WhatsApp connected successfully");
-      });
-
-      whatsappService.on("disconnected", () => {
-        console.log("[Startup] WhatsApp disconnected");
-      });
-
-      whatsappService.on("qr", (qr: string) => {
-        console.log("[Startup] WhatsApp QR code generated");
-        console.log("[QR] Scan this QR code with WhatsApp:");
-        console.log(qr);
-      });
-
-      await whatsappService.initialize();
-      console.log("[Startup] WhatsApp service initialized");
-    } catch (error) {
-      console.error("[Startup] WhatsApp initialization failed:", error);
-      console.log("[Startup] WhatsApp will retry connection...");
-    }
-  }, 1000); // Start after 1 second
+  // WhatsApp disabled temporarily due to Railway compatibility issues
+  // Baileys library has known Error 405 issues on Railway platform
+  // To enable WhatsApp, use WhatsApp Business API or deploy on different platform
+  console.log("[Startup] ⚠️  WhatsApp integration disabled (Railway compatibility issue)");
+  console.log("[Startup] ℹ️  Use WhatsApp Business API for production deployment");
 
   console.log("[Startup] RinaPro ERP started successfully!");
 }
