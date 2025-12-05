@@ -79,7 +79,15 @@ export default function CustomerBalances() {
   }
   
   // الفلاتر الذكية لكشف التلاعب
-  if (smartFilter === "suspicious") {
+  if (smartFilter === "openingMatchesDebit") {
+    // الرصيد السابق مطابق للحركة المدينة (مشبوه جداً)
+    filteredBalances = filteredBalances.filter(c => {
+      const previousBalance = c.previousBalance || 0;
+      const debit = c.debit || 0;
+      // إذا كان الرصيد السابق = المدين تماماً (فرق أقل من 1 هللة)
+      return Math.abs(previousBalance - debit) <= 1 && debit !== 0;
+    });
+  } else if (smartFilter === "suspicious") {
     // حالات مشبوهة: رصيد سالب كبير أو حركة غير منطقية
     filteredBalances = filteredBalances.filter(c => {
       const balance = c.currentBalance || 0;
@@ -522,6 +530,57 @@ export default function CustomerBalances() {
             </Button>
           </div>
 
+          {/* إحصائيات سريعة للكشف */}
+          {customerBalances && customerBalances.length > 0 && (() => {
+            const openingMatchesDebitCount = customerBalances.filter(c => {
+              const previousBalance = c.previousBalance || 0;
+              const debit = c.debit || 0;
+              return Math.abs(previousBalance - debit) <= 1 && debit !== 0;
+            }).length;
+            
+            const balanceMismatchCount = customerBalances.filter(c => {
+              const expectedBalance = (c.previousBalance || 0) + (c.debit || 0) - (c.credit || 0);
+              const actualBalance = c.currentBalance || 0;
+              return Math.abs(actualBalance - expectedBalance) > 1;
+            }).length;
+            
+            const negativeBalanceCount = customerBalances.filter(c => (c.currentBalance || 0) < 0).length;
+            
+            if (openingMatchesDebitCount > 0 || balanceMismatchCount > 0 || negativeBalanceCount > 0) {
+              return (
+                <Card className="glass-strong border-red-500/30 bg-red-500/5 mb-4">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-5 w-5 text-red-500 animate-pulse" />
+                      <h3 className="font-bold text-red-400">تنبيه: تم اكتشاف مشاكل في البيانات</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      {openingMatchesDebitCount > 0 && (
+                        <div className="bg-red-500/10 p-3 rounded border border-red-500/20">
+                          <div className="text-red-400 font-semibold">{openingMatchesDebitCount} عميل</div>
+                          <div className="text-red-300 text-xs">رصيد سابق = مدين</div>
+                        </div>
+                      )}
+                      {balanceMismatchCount > 0 && (
+                        <div className="bg-orange-500/10 p-3 rounded border border-orange-500/20">
+                          <div className="text-orange-400 font-semibold">{balanceMismatchCount} عميل</div>
+                          <div className="text-orange-300 text-xs">خطأ في الحسابات</div>
+                        </div>
+                      )}
+                      {negativeBalanceCount > 0 && (
+                        <div className="bg-yellow-500/10 p-3 rounded border border-yellow-500/20">
+                          <div className="text-yellow-400 font-semibold">{negativeBalanceCount} عميل</div>
+                          <div className="text-yellow-300 text-xs">رصيد سالب (دائن)</div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return null;
+          })()}
+
           {/* الفلاتر الذكية */}
           <Card className="glass-strong border-orange-500/30">
             <CardContent className="p-4">
@@ -550,6 +609,12 @@ export default function CustomerBalances() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">الكل</SelectItem>
+                      <SelectItem value="openingMatchesDebit">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 animate-pulse" />
+                          <span className="font-bold">رصيد أول المدة = المدين</span>
+                        </div>
+                      </SelectItem>
                       <SelectItem value="suspicious">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -601,6 +666,13 @@ export default function CustomerBalances() {
                 </div>
                 
                 {/* رسائل توضيحية للفلاتر */}
+                {smartFilter === "openingMatchesDebit" && displayBalances.length > 0 && (
+                  <div className="text-xs text-red-500 bg-red-500/20 p-3 rounded border border-red-500/30 font-semibold">
+                    🚨 تحذير: تم العثور على {displayBalances.length} عميل الرصيد السابق لديهم مطابق تماماً للحركة المدينة!
+                    <br />
+                    <span className="text-red-400 font-normal">هذا يعني عدم وجود حركة دائنة وقد يشير إلى تلاعب أو خطأ في الإدخال</span>
+                  </div>
+                )}
                 {smartFilter === "balanceMismatch" && displayBalances.length > 0 && (
                   <div className="text-xs text-orange-400 bg-orange-500/10 p-2 rounded">
                     ⚠️ تم العثور على {displayBalances.length} عميل بأخطاء حسابية - الرصيد الحالي لا يساوي (الرصيد السابق + المدين - الدائن)
@@ -626,7 +698,12 @@ export default function CustomerBalances() {
                     🚨 {displayBalances.length} حالة مشبوهة - رصيد سالب كبير أو حركة غير طبيعية
                   </div>
                 )}
-                {smartFilter !== "all" && displayBalances.length === 0 && (
+                {smartFilter === "openingMatchesDebit" && displayBalances.length === 0 && (
+                  <div className="text-xs text-green-400 bg-green-500/10 p-2 rounded">
+                    ✅ ممتاز! لا يوجد عملاء برصيد سابق مطابق للمدين - البيانات تبدو سليمة
+                  </div>
+                )}
+                {smartFilter !== "all" && smartFilter !== "openingMatchesDebit" && displayBalances.length === 0 && (
                   <div className="text-xs text-green-400 bg-green-500/10 p-2 rounded">
                     ✅ لا توجد مشاكل - جميع الأرصدة سليمة
                   </div>
