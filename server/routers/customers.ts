@@ -8,9 +8,12 @@ import { publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 
 export const customersRouter = router({
-  list: publicProcedure.query(async () => {
-    return await db.getCustomers();
-  }),
+  list: publicProcedure
+    .input(z.object({ companyId: z.number().optional() }).optional())
+    .query(async ({ input }) => {
+      const companyId = input?.companyId || 1;
+      return await db.getCustomers(companyId);
+    }),
 
   search: publicProcedure
     .input(z.object({ query: z.string() }))

@@ -255,9 +255,9 @@ export async function updateConnectionStatus(data: Partial<schema.InsertConnecti
 
 // ============ Customers CRUD ============
 
-export async function getCustomers(): Promise<schema.Customer[]> {
+export async function getCustomers(companyId: number = 1): Promise<schema.Customer[]> {
   if (usingSQLite) {
-    return sqliteDb.getCustomers() as schema.Customer[];
+    return sqliteDb.getCustomers(companyId) as schema.Customer[];
   }
   if (!db) return [];
   

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { BackToHome } from "@/components/BackToHome";
-import { Settings as SettingsIcon, Save, Loader2, Trash2, BookOpen, AlertTriangle } from "lucide-react";
+import { Settings as SettingsIcon, Save, Loader2, Trash2, BookOpen, AlertTriangle, Building2, Plus, Edit, X } from "lucide-react";
 import { Link } from "wouter";
 import {
   Dialog,
@@ -27,9 +27,18 @@ export default function Settings() {
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
+  
+  // Company management states
+  const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<any>(null);
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [newCompanyPhone, setNewCompanyPhone] = useState("");
+  const [newCompanyEmail, setNewCompanyEmail] = useState("");
+  const [newCompanyAddress, setNewCompanyAddress] = useState("");
 
   const utils = trpc.useUtils();
   const { data: settings } = trpc.settings.list.useQuery();
+  const { data: companies } = trpc.companies.list.useQuery();
 
   const setSettingMutation = trpc.settings.set.useMutation({
     onSuccess: () => {
@@ -53,6 +62,40 @@ export default function Settings() {
     },
   });
 
+  const createCompanyMutation = trpc.companies.create.useMutation({
+    onSuccess: () => {
+      toast.success("تم إضافة الشركة بنجاح");
+      setIsCompanyDialogOpen(false);
+      resetCompanyForm();
+      utils.companies.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`فشل إضافة الشركة: ${error.message}`);
+    },
+  });
+
+  const updateCompanyMutation = trpc.companies.update.useMutation({
+    onSuccess: () => {
+      toast.success("تم تحديث الشركة بنجاح");
+      setIsCompanyDialogOpen(false);
+      resetCompanyForm();
+      utils.companies.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`فشل تحديث الشركة: ${error.message}`);
+    },
+  });
+
+  const deleteCompanyMutation = trpc.companies.delete.useMutation({
+    onSuccess: () => {
+      toast.success("تم حذف الشركة بنجاح");
+      utils.companies.list.invalidate();
+    },
+    onError: (error) => {
+      toast.error(`فشل حذف الشركة: ${error.message}`);
+    },
+  });
+
   useEffect(() => {
     if (settings && Array.isArray(settings)) {
       const manager = settings.find((s) => s.settingKey === "MANAGER_NUMBER");
@@ -70,6 +113,61 @@ export default function Settings() {
       if (welcome) setWelcomeMessage(welcome.settingValue || "");
     }
   }, [settings]);
+
+  const resetCompanyForm = () => {
+    setNewCompanyName("");
+    setNewCompanyPhone("");
+    setNewCompanyEmail("");
+    setNewCompanyAddress("");
+    setEditingCompany(null);
+  };
+
+  const handleOpenCompanyDialog = (company?: any) => {
+    if (company) {
+      setEditingCompany(company);
+      setNewCompanyName(company.name || "");
+      setNewCompanyPhone(company.phone || "");
+      setNewCompanyEmail(company.email || "");
+      setNewCompanyAddress(company.address || "");
+    } else {
+      resetCompanyForm();
+    }
+    setIsCompanyDialogOpen(true);
+  };
+
+  const handleSaveCompany = async () => {
+    if (!newCompanyName.trim()) {
+      toast.error("يرجى إدخال اسم الشركة");
+      return;
+    }
+
+    try {
+      if (editingCompany) {
+        await updateCompanyMutation.mutateAsync({
+          id: editingCompany.id,
+          name: newCompanyName,
+          phone: newCompanyPhone,
+          email: newCompanyEmail,
+          address: newCompanyAddress,
+        });
+      } else {
+        await createCompanyMutation.mutateAsync({
+          name: newCompanyName,
+          phone: newCompanyPhone,
+          email: newCompanyEmail,
+          address: newCompanyAddress,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving company:", error);
+    }
+  };
+
+  const handleDeleteCompany = async (id: number) => {
+    if (confirm("هل أنت متأكد من حذف هذه الشركة؟")) {
+      await deleteCompanyMutation.mutateAsync({ id });
+    }
+  };
 
   const handleSaveSettings = async () => {
     try {
@@ -130,6 +228,68 @@ export default function Settings() {
             <Button variant="outline">العودة للرئيسية</Button>
           </Link>
         </div>
+
+        {/* Companies Management Card */}
+        <Card className="glass-strong mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg neon-green-bg">
+                  <Building2 className="h-6 w-6 neon-green" />
+                </div>
+                <div>
+                  <CardTitle>إدارة الشركات</CardTitle>
+                  <CardDescription>
+                    إضافة وإدارة الشركات المختلفة في النظام
+                  </CardDescription>
+                </div>
+              </div>
+              <Button onClick={() => handleOpenCompanyDialog()} className="neon-green-bg">
+                <Plus className="ml-2 h-4 w-4" />
+                إضافة شركة
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {companies && companies.length > 0 ? (
+                companies.map((company: any) => (
+                  <div key={company.id} className="flex items-center justify-between p-4 glass rounded-lg">
+                    <div>
+                      <h3 className="font-semibold">{company.name}</h3>
+                      <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                        {company.phone && <p>📞 {company.phone}</p>}
+                        {company.email && <p>📧 {company.email}</p>}
+                        {company.address && <p>📍 {company.address}</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleOpenCompanyDialog(company)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteCompany(company.id)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  لا توجد شركات مضافة. اضغط "إضافة شركة" للبدء.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Settings Card */}
         <Card className="glass-strong">
@@ -378,6 +538,85 @@ export default function Settings() {
             </Dialog>
           </CardContent>
         </Card>
+
+        {/* Company Dialog */}
+        <Dialog open={isCompanyDialogOpen} onOpenChange={setIsCompanyDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {editingCompany ? "تعديل الشركة" : "إضافة شركة جديدة"}
+              </DialogTitle>
+              <DialogDescription>
+                أدخل بيانات الشركة
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="company-name">اسم الشركة *</Label>
+                <Input
+                  id="company-name"
+                  value={newCompanyName}
+                  onChange={(e) => setNewCompanyName(e.target.value)}
+                  placeholder="شركة رينا برو للتقنية"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company-phone">رقم الهاتف</Label>
+                <Input
+                  id="company-phone"
+                  value={newCompanyPhone}
+                  onChange={(e) => setNewCompanyPhone(e.target.value)}
+                  placeholder="+966557111398"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company-email">البريد الإلكتروني</Label>
+                <Input
+                  id="company-email"
+                  value={newCompanyEmail}
+                  onChange={(e) => setNewCompanyEmail(e.target.value)}
+                  placeholder="info@company.com"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company-address">العنوان</Label>
+                <Input
+                  id="company-address"
+                  value={newCompanyAddress}
+                  onChange={(e) => setNewCompanyAddress(e.target.value)}
+                  placeholder="الرياض، المملكة العربية السعودية"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsCompanyDialogOpen(false)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                onClick={handleSaveCompany}
+                disabled={createCompanyMutation.isPending || updateCompanyMutation.isPending}
+                className="neon-green-bg"
+              >
+                {(createCompanyMutation.isPending || updateCompanyMutation.isPending) ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <Save className="ml-2 h-4 w-4" />
+                    حفظ
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

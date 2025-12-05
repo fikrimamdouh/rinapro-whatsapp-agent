@@ -35,10 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import * as XLSX from 'xlsx';
+import { getActiveCompanyId } from "@/lib/company";
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [balanceFilter, setBalanceFilter] = useState<string>("all");
+  const companyId = getActiveCompanyId();
 
   // جلب البيانات من ميزان العملاء
   const { data: customerBalances, isLoading, refetch } = trpc.customerBalances.getAll.useQuery();

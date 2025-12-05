@@ -25,6 +25,7 @@ import {
 import { Link } from "wouter";
 import { BackToHome } from "@/components/BackToHome";
 import { AnalyticsCharts } from "@/components/AnalyticsCharts";
+import { CompanySelector } from "@/components/CompanySelector";
 
 export default function Dashboard() {
   const { data: user } = trpc.auth.me.useQuery();
@@ -74,13 +75,16 @@ export default function Dashboard() {
         <BackToHome />
         
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold neon-green mb-2">
-            {companyName}
-          </h1>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold neon-green mb-2">
+              {companyName}
+            </h1>
           <p className="text-muted-foreground">
             {welcomeMessage}
           </p>
+          </div>
+          <CompanySelector />
         </div>
 
         {/* Analytics Charts */}

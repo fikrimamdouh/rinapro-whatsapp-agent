@@ -505,9 +505,9 @@ export function setSetting(key: string, value: string, description?: string): vo
   stmt.run(key, value, description || null, value, description || null);
 }
 
-export function getCustomers(): any[] {
+export function getCustomers(companyId: number = 1): any[] {
   if (!sqliteDb) return [];
-  return sqliteDb.prepare("SELECT * FROM customers ORDER BY createdAt DESC").all();
+  return sqliteDb.prepare("SELECT * FROM customers WHERE companyId = ? ORDER BY createdAt DESC").all(companyId);
 }
 
 export function searchCustomers(query: string): any[] {
