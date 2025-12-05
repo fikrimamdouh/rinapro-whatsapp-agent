@@ -483,39 +483,7 @@ export default function CustomerBalances() {
   };
 
   // Filter and sort functions
-  const getFilteredBalances = () => {
-    let filtered = Array.isArray(customerBalances) ? customerBalances : [];
-    
-    // Apply search
-    if (searchQuery.length > 0) {
-      filtered = filtered.filter(b => 
-        b.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Apply balance filters
-    if (filterType === "zero") {
-      filtered = filtered.filter(b => b.currentBalance === 0);
-    } else if (filterType === "range" && (minBalance || maxBalance)) {
-      const min = minBalance ? parseFloat(minBalance) * 100 : -Infinity;
-      const max = maxBalance ? parseFloat(maxBalance) * 100 : Infinity;
-      filtered = filtered.filter(b => {
-        const balance = b.currentBalance || 0;
-        return balance >= min && balance <= max;
-      });
-    } else if (filterType === "debit") {
-      filtered = filtered.filter(b => (b.currentBalance || 0) > 0);
-    } else if (filterType === "credit") {
-      filtered = filtered.filter(b => (b.currentBalance || 0) < 0);
-    } else if (filterType === "top10") {
-      filtered = [...filtered].sort((a, b) => Math.abs(b.currentBalance || 0) - Math.abs(a.currentBalance || 0)).slice(0, 10);
-    } else if (filterType === "bottom10") {
-      filtered = [...filtered].sort((a, b) => Math.abs(a.currentBalance || 0) - Math.abs(b.currentBalance || 0)).slice(0, 10);
-    }
-    
-    return filtered;
-  };
+
   
   const handleQuickSend = (balance: any) => {
     if (!balance.customerPhone) {
@@ -549,29 +517,37 @@ export default function CustomerBalances() {
   };
 
   const sendToWhatsApp = () => {
-    const filtered = getFilteredBalances();
-    if (filtered.length === 0) {
+    if (displayBalances.length === 0) {
       toast.error("لا توجد بيانات لإرسالها");
       return;
     }
     
     let message = "📊 *أرصدة العملاء*\n\n";
     
-    if (filterType === "zero") message += "العملاء برصيد صفر:\n\n";
-    else if (filterType === "debit") message += "العملاء المدينون:\n\n";
-    else if (filterType === "credit") message += "العملاء الدائنون:\n\n";
-    else if (filterType === "top10") message += "أكبر 10 عملاء:\n\n";
-    else if (filterType === "bottom10") message += "أصغر 10 عملاء:\n\n";
-    else if (filterType === "range") message += `العملاء من ${minBalance || 0} إلى ${maxBalance || "∞"}:\n\n`;
+    // عنوان حسب الفلتر
+    if (smartFilter === "openingMatchesDebit") message += "🚨 رصيد سابق = مدين:\n\n";
+    else if (smartFilter === "openingWithMovementToZero") message += "🚨 رصيد + حركة = صفر:\n\n";
+    else if (smartFilter === "balanceMismatch") message += "⚠️ أخطاء حسابية:\n\n";
+    else if (smartFilter === "negativeBalance") message += "📉 عملاء دائنون:\n\n";
+    else if (smartFilter === "zero") message += "العملاء برصيد صفر:\n\n";
+    else if (smartFilter === "debit") message += "العملاء المدينون:\n\n";
+    else if (smartFilter === "credit") message += "العملاء الدائنون:\n\n";
+    else if (smartFilter === "top10") message += "أكبر 10 عملاء:\n\n";
+    else if (smartFilter === "bottom10") message += "أصغر 10 عملاء:\n\n";
+    else if (smartFilter === "range") message += `العملاء من ${minBalance || 0} إلى ${maxBalance || "∞"}:\n\n`;
+    else if (smartFilter === "debitOnly") message += "حركة مدين فقط:\n\n";
+    else if (smartFilter === "creditOnly") message += "حركة دائن فقط:\n\n";
+    else if (smartFilter === "balanceIncreased") message += "📈 الرصيد زاد:\n\n";
+    else if (smartFilter === "balanceDecreased") message += "📉 الرصيد نقص:\n\n";
     
-    filtered.forEach((b, i) => {
+    displayBalances.forEach((b, i) => {
       const balance = (b.currentBalance || 0) / 100;
       const type = balance > 0 ? "مدين" : balance < 0 ? "دائن" : "صفر";
       message += `${i + 1}. ${b.customerName}\n`;
       message += `   الرصيد: ${Math.abs(balance).toFixed(2)} ر.س (${type})\n\n`;
     });
     
-    message += `\n📈 الإجمالي: ${filtered.length} عميل`;
+    message += `\n📈 الإجمالي: ${displayBalances.length} عميل`;
     
     // Copy to clipboard
     navigator.clipboard.writeText(message).then(() => {
@@ -584,7 +560,7 @@ export default function CustomerBalances() {
   };
 
   const balancesArray = Array.isArray(customerBalances) ? customerBalances : [];
-  const displayBalances = getFilteredBalances();
+  const displayBalances = filteredBalances;
 
   const totalDebit = balancesArray.reduce((sum, b) => sum + (b.debit || 0), 0) / 100;
   const totalCredit = balancesArray.reduce((sum, b) => sum + (b.credit || 0), 0) / 100;
