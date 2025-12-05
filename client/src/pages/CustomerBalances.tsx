@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { BackToHome } from "@/components/BackToHome";
@@ -16,7 +17,18 @@ import {
   TrendingDown,
   Send,
   RefreshCw,
+  AlertTriangle,
+  Filter,
+  MessageSquare,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import * as XLSX from 'xlsx';
 import { Link } from "wouter";
 import {
   Dialog,
@@ -46,21 +58,65 @@ export default function CustomerBalances() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [filterType, setFilterType] = useState<string>("all");
-  const [minBalance, setMinBalance] = useState<string>("");
-  const [maxBalance, setMaxBalance] = useState<string>("");
+  const [smartFilter, setSmartFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
   const { data: customerBalances, isLoading, refetch } = trpc.customerBalances.getAll.useQuery();
   
-  // البحث محلياً
-  const searchResults = searchQuery.length > 0 
-    ? customerBalances?.filter(c => 
-        c.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : null;
+  // تطبيق الفلاتر الذكية
+  let filteredBalances = customerBalances || [];
+  
+  // فلتر البحث
+  if (searchQuery.length > 0) {
+    filteredBalances = filteredBalances.filter(c => 
+      c.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+  
+  // الفلاتر الذكية لكشف التلاعب
+  if (smartFilter === "suspicious") {
+    // حالات مشبوهة: رصيد سالب كبير أو حركة غير منطقية
+    filteredBalances = filteredBalances.filter(c => {
+      const balance = c.closingDebitBalance - c.closingCreditBalance;
+      const movement = c.debitMovement + c.creditMovement;
+      return balance < -100000 || movement > 1000000;
+    });
+  } else if (smartFilter === "negativeBalance") {
+    // رصيد سالب (دائن)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.closingDebitBalance - c.closingCreditBalance) < 0
+    );
+  } else if (smartFilter === "largeMovement") {
+    // حركة كبيرة (أكثر من 500,000)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.debitMovement + c.creditMovement) > 500000
+    );
+  } else if (smartFilter === "noMovement") {
+    // لا توجد حركة (مدين ودائن = 0)
+    filteredBalances = filteredBalances.filter(c => 
+      c.debitMovement === 0 && c.creditMovement === 0
+    );
+  } else if (smartFilter === "balanceMismatch") {
+    // عدم تطابق الرصيد (الرصيد الختامي لا يساوي الافتتاحي + الحركة)
+    filteredBalances = filteredBalances.filter(c => {
+      const expectedDebit = c.openingDebitBalance + c.debitMovement;
+      const expectedCredit = c.openingCreditBalance + c.creditMovement;
+      return Math.abs(c.closingDebitBalance - expectedDebit) > 1 || 
+             Math.abs(c.closingCreditBalance - expectedCredit) > 1;
+    });
+  } else if (smartFilter === "zeroOpening") {
+    // رصيد افتتاحي صفر
+    filteredBalances = filteredBalances.filter(c => 
+      c.openingDebitBalance === 0 && c.openingCreditBalance === 0
+    );
+  } else if (smartFilter === "hasOpening") {
+    // لديه رصيد افتتاحي
+    filteredBalances = filteredBalances.filter(c => 
+      c.openingDebitBalance !== 0 || c.openingCreditBalance !== 0
+    );
+  }
 
   const uploadBatchMutation = trpc.customerBalances.uploadBatch.useMutation({
     onSuccess: () => {
@@ -223,7 +279,10 @@ export default function CustomerBalances() {
     
     // Apply search
     if (searchQuery.length > 0) {
-      filtered = Array.isArray(searchResults) ? searchResults : [];
+      filtered = filtered.filter(b => 
+        b.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.customerCode?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
     
     // Apply balance filters
@@ -249,6 +308,37 @@ export default function CustomerBalances() {
     return filtered;
   };
   
+  const handleQuickSend = (balance: any) => {
+    if (!balance.customerPhone) {
+      toast.error("لا يوجد رقم هاتف لهذا العميل");
+      return;
+    }
+
+    const finalBalance = (balance.currentBalance || 0) / 100;
+    const balanceType = finalBalance > 0 ? "مدين" : finalBalance < 0 ? "دائن" : "صفر";
+    const previousBalance = (balance.previousBalance || 0) / 100;
+    const debit = (balance.debit || 0) / 100;
+    const credit = (balance.credit || 0) / 100;
+
+    const message = `مرحباً ${balance.customerName}،
+
+📊 *ميزان المراجعة*
+
+🔹 الرصيد السابق: ${Math.abs(previousBalance).toFixed(2)} ر.س
+🔹 حركة مدين: ${debit.toFixed(2)} ر.س
+🔹 حركة دائن: ${credit.toFixed(2)} ر.س
+
+💰 *الرصيد الحالي:* ${Math.abs(finalBalance).toFixed(2)} ر.س (${balanceType})
+
+شكراً لتعاملكم معنا 🙏`;
+
+    const phone = balance.customerPhone.replace(/[^0-9]/g, '');
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    toast.success("تم فتح واتساب");
+  };
+
   const sendToWhatsApp = () => {
     const filtered = getFilteredBalances();
     if (filtered.length === 0) {
@@ -389,42 +479,109 @@ export default function CustomerBalances() {
           </CardContent>
         </Card>
 
-        <div className="mb-6 flex flex-wrap gap-3">
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isImporting ? (
-              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="ml-2 h-4 w-4" />
-            )}
-            {isImporting ? "جاري الرفع..." : "رفع ملف Excel"}
-          </Button>
+        <div className="mb-6 space-y-4">
+          {/* أزرار الإجراءات */}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isImporting ? (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="ml-2 h-4 w-4" />
+              )}
+              {isImporting ? "جاري الرفع..." : "رفع ملف Excel"}
+            </Button>
 
-          <Button
-            onClick={async () => {
-              toast.info("جاري تحديث البيانات...");
-              await refetch();
-              toast.success("تم تحديث البيانات بنجاح");
-            }}
-            disabled={isLoading}
-            variant="outline"
-            className="border-green-500/30 hover:bg-green-500/10"
-          >
-            <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            تحديث البيانات
-          </Button>
+            <Button
+              onClick={async () => {
+                toast.info("جاري تحديث البيانات...");
+                await refetch();
+                toast.success("تم تحديث البيانات بنجاح");
+              }}
+              disabled={isLoading}
+              variant="outline"
+              className="border-green-500/30 hover:bg-green-500/10"
+            >
+              <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              تحديث البيانات
+            </Button>
 
-          <Button
-            onClick={handleExportExcel}
-            variant="outline"
-            className="border-[#00ff88]/30"
-          >
-            <Download className="ml-2 h-4 w-4" />
-            تصدير Excel
-          </Button>
+            <Button
+              onClick={handleExportExcel}
+              variant="outline"
+              className="border-[#00ff88]/30"
+            >
+              <Download className="ml-2 h-4 w-4" />
+              تصدير Excel
+            </Button>
+          </div>
+
+          {/* الفلاتر الذكية */}
+          <Card className="glass-strong border-orange-500/30">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="search" className="mb-2 block flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    بحث
+                  </Label>
+                  <Input
+                    id="search"
+                    placeholder="ابحث عن عميل..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="smart-filter" className="mb-2 block flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    فلاتر ذكية لكشف التلاعب
+                  </Label>
+                  <Select value={smartFilter} onValueChange={setSmartFilter}>
+                    <SelectTrigger id="smart-filter">
+                      <SelectValue placeholder="اختر الفلتر" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">الكل</SelectItem>
+                      <SelectItem value="suspicious">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                          حالات مشبوهة
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="balanceMismatch">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-orange-500" />
+                          عدم تطابق الرصيد
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="negativeBalance">رصيد سالب (دائن)</SelectItem>
+                      <SelectItem value="largeMovement">حركة كبيرة (+500K)</SelectItem>
+                      <SelectItem value="noMovement">بدون حركة</SelectItem>
+                      <SelectItem value="hasOpening">لديه رصيد افتتاحي</SelectItem>
+                      <SelectItem value="zeroOpening">رصيد افتتاحي صفر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  عرض {displayBalances.length} من {customerBalances?.length || 0} رصيد
+                </span>
+                {smartFilter !== "all" && (
+                  <span className="text-orange-400 flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" />
+                    فلتر نشط
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
             <DialogTrigger asChild>
@@ -549,6 +706,7 @@ export default function CustomerBalances() {
                       <TableHead className="text-right text-red-400">مدين</TableHead>
                       <TableHead className="text-right text-green-400">دائن</TableHead>
                       <TableHead className="text-right">الرصيد</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -569,6 +727,18 @@ export default function CustomerBalances() {
                           {formatAmount(balance.currentBalance || 0)}
                           {(balance.currentBalance || 0) > 0 && <span className="text-xs mr-1">(مدين)</span>}
                           {(balance.currentBalance || 0) < 0 && <span className="text-xs mr-1">(دائن)</span>}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleQuickSend(balance)}
+                            className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                            disabled={!balance.customerPhone}
+                            title={balance.customerPhone ? "إرسال رسالة واتساب" : "لا يوجد رقم هاتف"}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
