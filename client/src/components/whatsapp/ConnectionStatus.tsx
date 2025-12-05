@@ -284,83 +284,7 @@ export function ConnectionStatus() {
           </Button>
         </div>
 
-        {/* Railway Compatibility Warning */}
-        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-6">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="text-3xl">⚠️</div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-orange-300 mb-2">
-                  مشكلة توافق مع Railway
-                </h3>
-                <p className="text-sm text-orange-200 mb-3">
-                  مكتبة Baileys (المستخدمة للاتصال بـ WhatsApp) لها مشاكل معروفة على منصة Railway.
-                  WhatsApp يرفض الاتصال من بعض الخوادم (Error 405).
-                </p>
-                
-                <div className="bg-orange-500/20 rounded-lg p-4 mb-3">
-                  <p className="text-sm text-orange-100 font-semibold mb-2">
-                    📊 حالة الاتصال:
-                  </p>
-                  <ul className="text-sm text-orange-200 space-y-1">
-                    <li>❌ Baileys على Railway: لا يعمل</li>
-                    <li>✅ جميع الميزات الأخرى: تعمل بشكل طبيعي</li>
-                    <li>✅ قاعدة البيانات: محفوظة ودائمة</li>
-                  </ul>
-                </div>
 
-                <div className="space-y-2">
-                  <p className="text-sm text-orange-300 font-semibold">
-                    🔧 الحلول البديلة:
-                  </p>
-                  <div className="space-y-2 text-sm text-orange-200">
-                    <div className="bg-green-500/10 border border-green-500/30 rounded p-3">
-                      <p className="font-semibold text-green-300 mb-1">
-                        ✅ الحل الموصى به: WhatsApp Business API
-                      </p>
-                      <ul className="list-disc list-inside space-y-1 text-green-200">
-                        <li>احترافي وموثوق 100%</li>
-                        <li>مجاني حتى 1000 رسالة/شهر</li>
-                        <li>يعمل على أي منصة</li>
-                        <li>دعم رسمي من Meta</li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
-                      <p className="font-semibold text-blue-300 mb-1">
-                        📱 بديل: Twilio WhatsApp API
-                      </p>
-                      <ul className="list-disc list-inside space-y-1 text-blue-200">
-                        <li>سهل الإعداد (15 دقيقة)</li>
-                        <li>$0.005 لكل رسالة</li>
-                        <li>API بسيط وواضح</li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-purple-500/10 border border-purple-500/30 rounded p-3">
-                      <p className="font-semibold text-purple-300 mb-1">
-                        🖥️ بديل: نشر على VPS آخر
-                      </p>
-                      <ul className="list-disc list-inside space-y-1 text-purple-200">
-                        <li>DigitalOcean أو Linode</li>
-                        <li>$4-5/شهر</li>
-                        <li>Baileys قد يعمل على IPs مختلفة</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-orange-500/30">
-                  <p className="text-xs text-orange-300">
-                    💡 <strong>ملاحظة:</strong> جميع ميزات التطبيق الأخرى (العملاء، الفواتير، الحسابات، المخزون، إلخ) تعمل بشكل طبيعي.
-                    فقط ميزة WhatsApp تحتاج حل بديل.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         {/* Connection Tips */}
         {!isConnected && !qrCode && !isConnecting && false && (
           <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
