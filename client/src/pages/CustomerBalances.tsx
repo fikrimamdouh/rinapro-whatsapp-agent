@@ -82,42 +82,42 @@ export default function CustomerBalances() {
   if (smartFilter === "suspicious") {
     // حالات مشبوهة: رصيد سالب كبير أو حركة غير منطقية
     filteredBalances = filteredBalances.filter(c => {
-      const balance = c.closingDebitBalance - c.closingCreditBalance;
-      const movement = c.debitMovement + c.creditMovement;
+      const balance = c.currentBalance || 0;
+      const movement = (c.debit || 0) + (c.credit || 0);
       return balance < -100000 || movement > 1000000;
     });
   } else if (smartFilter === "negativeBalance") {
     // رصيد سالب (دائن)
     filteredBalances = filteredBalances.filter(c => 
-      (c.closingDebitBalance - c.closingCreditBalance) < 0
+      (c.currentBalance || 0) < 0
     );
   } else if (smartFilter === "largeMovement") {
-    // حركة كبيرة (أكثر من 500,000)
+    // حركة كبيرة (أكثر من 500,000 هللة = 5,000 ريال)
     filteredBalances = filteredBalances.filter(c => 
-      (c.debitMovement + c.creditMovement) > 500000
+      ((c.debit || 0) + (c.credit || 0)) > 500000
     );
   } else if (smartFilter === "noMovement") {
     // لا توجد حركة (مدين ودائن = 0)
     filteredBalances = filteredBalances.filter(c => 
-      c.debitMovement === 0 && c.creditMovement === 0
+      (c.debit || 0) === 0 && (c.credit || 0) === 0
     );
   } else if (smartFilter === "balanceMismatch") {
-    // عدم تطابق الرصيد (الرصيد الختامي لا يساوي الافتتاحي + الحركة)
+    // عدم تطابق الرصيد: الرصيد الحالي لا يساوي (الرصيد السابق + المدين - الدائن)
     filteredBalances = filteredBalances.filter(c => {
-      const expectedDebit = c.openingDebitBalance + c.debitMovement;
-      const expectedCredit = c.openingCreditBalance + c.creditMovement;
-      return Math.abs(c.closingDebitBalance - expectedDebit) > 1 || 
-             Math.abs(c.closingCreditBalance - expectedCredit) > 1;
+      const expectedBalance = (c.previousBalance || 0) + (c.debit || 0) - (c.credit || 0);
+      const actualBalance = c.currentBalance || 0;
+      // فرق أكثر من 1 هللة يعتبر خطأ
+      return Math.abs(actualBalance - expectedBalance) > 1;
     });
   } else if (smartFilter === "zeroOpening") {
-    // رصيد افتتاحي صفر
+    // رصيد افتتاحي صفر (رصيد سابق = 0)
     filteredBalances = filteredBalances.filter(c => 
-      c.openingDebitBalance === 0 && c.openingCreditBalance === 0
+      (c.previousBalance || 0) === 0
     );
   } else if (smartFilter === "hasOpening") {
-    // لديه رصيد افتتاحي
+    // لديه رصيد افتتاحي (رصيد سابق ≠ 0)
     filteredBalances = filteredBalances.filter(c => 
-      c.openingDebitBalance !== 0 || c.openingCreditBalance !== 0
+      (c.previousBalance || 0) !== 0
     );
   }
 
@@ -559,28 +559,77 @@ export default function CustomerBalances() {
                       <SelectItem value="balanceMismatch">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          عدم تطابق الرصيد
+                          خطأ في الحسابات (عدم تطابق)
                         </div>
                       </SelectItem>
-                      <SelectItem value="negativeBalance">رصيد سالب (دائن)</SelectItem>
-                      <SelectItem value="largeMovement">حركة كبيرة (+500K)</SelectItem>
-                      <SelectItem value="noMovement">بدون حركة</SelectItem>
-                      <SelectItem value="hasOpening">لديه رصيد افتتاحي</SelectItem>
-                      <SelectItem value="zeroOpening">رصيد افتتاحي صفر</SelectItem>
+                      <SelectItem value="negativeBalance">
+                        <div className="flex items-center gap-2">
+                          <TrendingDown className="h-4 w-4 text-red-500" />
+                          رصيد سالب (دائن)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="largeMovement">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-blue-500" />
+                          حركة كبيرة (+5,000 ر.س)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="noMovement">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="h-4 w-4 text-gray-500" />
+                          بدون حركة
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="hasOpening">لديه رصيد سابق</SelectItem>
+                      <SelectItem value="zeroOpening">رصيد سابق صفر</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  عرض {displayBalances.length} من {customerBalances?.length || 0} رصيد
-                </span>
-                {smartFilter !== "all" && (
-                  <span className="text-orange-400 flex items-center gap-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    فلتر نشط
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    عرض {displayBalances.length} من {customerBalances?.length || 0} رصيد
                   </span>
+                  {smartFilter !== "all" && (
+                    <span className="text-orange-400 flex items-center gap-1">
+                      <AlertTriangle className="h-4 w-4" />
+                      فلتر نشط
+                    </span>
+                  )}
+                </div>
+                
+                {/* رسائل توضيحية للفلاتر */}
+                {smartFilter === "balanceMismatch" && displayBalances.length > 0 && (
+                  <div className="text-xs text-orange-400 bg-orange-500/10 p-2 rounded">
+                    ⚠️ تم العثور على {displayBalances.length} عميل بأخطاء حسابية - الرصيد الحالي لا يساوي (الرصيد السابق + المدين - الدائن)
+                  </div>
+                )}
+                {smartFilter === "negativeBalance" && displayBalances.length > 0 && (
+                  <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded">
+                    🔴 {displayBalances.length} عميل لديهم رصيد سالب (دائنون) - يحتاجون متابعة فورية
+                  </div>
+                )}
+                {smartFilter === "largeMovement" && displayBalances.length > 0 && (
+                  <div className="text-xs text-blue-400 bg-blue-500/10 p-2 rounded">
+                    📊 {displayBalances.length} عميل لديهم حركة كبيرة (أكثر من 5,000 ر.س)
+                  </div>
+                )}
+                {smartFilter === "noMovement" && displayBalances.length > 0 && (
+                  <div className="text-xs text-gray-400 bg-gray-500/10 p-2 rounded">
+                    💤 {displayBalances.length} عميل بدون أي حركة في الفترة
+                  </div>
+                )}
+                {smartFilter === "suspicious" && displayBalances.length > 0 && (
+                  <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded">
+                    🚨 {displayBalances.length} حالة مشبوهة - رصيد سالب كبير أو حركة غير طبيعية
+                  </div>
+                )}
+                {smartFilter !== "all" && displayBalances.length === 0 && (
+                  <div className="text-xs text-green-400 bg-green-500/10 p-2 rounded">
+                    ✅ لا توجد مشاكل - جميع الأرصدة سليمة
+                  </div>
                 )}
               </div>
             </CardContent>
