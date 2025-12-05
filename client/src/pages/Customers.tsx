@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { BackToHome } from "@/components/BackToHome";
@@ -14,6 +15,8 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
+  Send,
+  Filter,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -24,9 +27,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import * as XLSX from 'xlsx';
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [balanceFilter, setBalanceFilter] = useState<string>("all");
 
   // جلب البيانات من ميزان العملاء
   const { data: customerBalances, isLoading, refetch } = trpc.customerBalances.getAll.useQuery();
@@ -43,14 +55,30 @@ export default function Customers() {
     previousBalance: balance.previousBalance,
   })) || [];
 
-  // البحث في بيانات الميزان
-  const displayCustomers = searchQuery.length > 0 
-    ? customers.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.customerId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phone?.includes(searchQuery)
-      )
-    : customers;
+  // تطبيق الفلاتر
+  let filteredCustomers = customers;
+  
+  // فلتر البحث
+  if (searchQuery.length > 0) {
+    filteredCustomers = filteredCustomers.filter(c => 
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.customerId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.phone?.includes(searchQuery)
+    );
+  }
+  
+  // فلتر الرصيد
+  if (balanceFilter === "hasBalance") {
+    filteredCustomers = filteredCustomers.filter(c => c.previousBalance !== 0);
+  } else if (balanceFilter === "zeroBalance") {
+    filteredCustomers = filteredCustomers.filter(c => c.previousBalance === 0);
+  } else if (balanceFilter === "positive") {
+    filteredCustomers = filteredCustomers.filter(c => c.balance > 0);
+  } else if (balanceFilter === "negative") {
+    filteredCustomers = filteredCustomers.filter(c => c.balance < 0);
+  }
+  
+  const displayCustomers = filteredCustomers;
 
   const formatCurrency = (amount: number) => {
     return `${(amount / 100).toFixed(2)} ر.س`;
@@ -60,6 +88,61 @@ export default function Customers() {
     toast.info("جاري تحديث البيانات...");
     await refetch();
     toast.success("تم تحديث البيانات بنجاح");
+  };
+
+  const handleExportExcel = () => {
+    if (!displayCustomers || displayCustomers.length === 0) {
+      toast.error("لا توجد بيانات للتصدير");
+      return;
+    }
+
+    try {
+      // تحضير البيانات للتصدير
+      const exportData = displayCustomers.map(customer => ({
+        'كود العميل': customer.customerId || '',
+        'اسم العميل': customer.name,
+        'رقم الهاتف': customer.phone || '',
+        'رصيد أول المدة': (customer.previousBalance / 100).toFixed(2),
+        'مدين': (customer.debit / 100).toFixed(2),
+        'دائن': (customer.credit / 100).toFixed(2),
+        'الرصيد الحالي': (customer.balance / 100).toFixed(2),
+      }));
+
+      // إنشاء ورقة عمل
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // تنسيق العرض
+      const wscols = [
+        { wch: 15 }, // كود العميل
+        { wch: 30 }, // اسم العميل
+        { wch: 15 }, // رقم الهاتف
+        { wch: 15 }, // رصيد أول المدة
+        { wch: 15 }, // مدين
+        { wch: 15 }, // دائن
+        { wch: 15 }, // الرصيد الحالي
+      ];
+      ws['!cols'] = wscols;
+
+      // إنشاء كتاب عمل
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'العملاء');
+
+      // تصدير الملف
+      const fileName = `customers_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      toast.success(`تم تصدير ${displayCustomers.length} عميل بنجاح`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("حدث خطأ أثناء التصدير");
+    }
+  };
+
+  const handleQuickSend = (customer: any) => {
+    const message = `مرحباً ${customer.name}،\n\nرصيدك الحالي: ${formatCurrency(customer.balance)}\n\nشكراً لتعاملكم معنا`;
+    const whatsappUrl = `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    toast.success(`تم فتح WhatsApp لإرسال رسالة إلى ${customer.name}`);
   };
 
   const handleExport = () => {
@@ -172,28 +255,81 @@ export default function Customers() {
           </CardContent>
         </Card>
 
-        <div className="mb-6 flex flex-wrap gap-3">
-          <Link href="/customer-balances">
-            <Button className="neon-green-bg">
-              <Upload className="ml-2 h-4 w-4" />
-              رفع ميزان العملاء
+        <div className="mb-6 space-y-4">
+          {/* أزرار الإجراءات */}
+          <div className="flex flex-wrap gap-3">
+            <Link href="/customer-balances">
+              <Button className="neon-green-bg">
+                <Upload className="ml-2 h-4 w-4" />
+                رفع ميزان العملاء
+              </Button>
+            </Link>
+
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="border-blue-500/30 hover:bg-blue-500/10"
+            >
+              <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              تحديث البيانات
             </Button>
-          </Link>
 
-          <Button 
-            variant="outline" 
-            onClick={handleRefresh}
-            disabled={isLoading}
-            className="border-blue-500/30 hover:bg-blue-500/10"
-          >
-            <RefreshCw className={`ml-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            تحديث البيانات
-          </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleExportExcel}
+              className="border-green-500/30 hover:bg-green-500/10"
+            >
+              <Download className="ml-2 h-4 w-4" />
+              تصدير Excel
+            </Button>
 
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="ml-2 h-4 w-4" />
-            تصدير CSV
-          </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="ml-2 h-4 w-4" />
+              تصدير CSV
+            </Button>
+          </div>
+
+          {/* الفلاتر */}
+          <Card className="glass-strong">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="search" className="mb-2 block">بحث</Label>
+                  <div className="relative">
+                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      id="search"
+                      placeholder="ابحث عن عميل..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pr-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="balance-filter" className="mb-2 block">فلتر الرصيد</Label>
+                  <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+                    <SelectTrigger id="balance-filter">
+                      <SelectValue placeholder="اختر الفلتر" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">الكل</SelectItem>
+                      <SelectItem value="hasBalance">لديهم رصيد أول المدة</SelectItem>
+                      <SelectItem value="zeroBalance">رصيد أول المدة صفر</SelectItem>
+                      <SelectItem value="positive">رصيد موجب</SelectItem>
+                      <SelectItem value="negative">رصيد سالب</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-3 text-sm text-muted-foreground">
+                عرض {displayCustomers.length} من {customers.length} عميل
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex-1 min-w-[300px]">
             <div className="relative">
@@ -231,9 +367,11 @@ export default function Customers() {
                       <TableHead className="text-right">كود العميل</TableHead>
                       <TableHead className="text-right">الاسم</TableHead>
                       <TableHead className="text-right">الهاتف</TableHead>
+                      <TableHead className="text-right">رصيد أول المدة</TableHead>
                       <TableHead className="text-right">المدين</TableHead>
                       <TableHead className="text-right">الدائن</TableHead>
                       <TableHead className="text-right">الرصيد الحالي</TableHead>
+                      <TableHead className="text-right">إجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -242,10 +380,23 @@ export default function Customers() {
                         <TableCell className="font-mono text-sm">{customer.customerId}</TableCell>
                         <TableCell className="font-medium">{customer.name}</TableCell>
                         <TableCell>{customer.phone || "-"}</TableCell>
+                        <TableCell className="text-purple-500">{formatCurrency(customer.previousBalance || 0)}</TableCell>
                         <TableCell className="text-blue-500">{formatCurrency(customer.debit || 0)}</TableCell>
                         <TableCell className="text-orange-500">{formatCurrency(customer.credit || 0)}</TableCell>
                         <TableCell className={customer.balance < 0 ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
                           {formatCurrency(customer.balance)}
+                        </TableCell>
+                        <TableCell>
+                          {customer.phone && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleQuickSend(customer)}
+                              className="border-green-500/30 hover:bg-green-500/10"
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
