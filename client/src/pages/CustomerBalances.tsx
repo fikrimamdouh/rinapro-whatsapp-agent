@@ -115,6 +115,14 @@ export default function CustomerBalances() {
     filteredBalances = [...filteredBalances]
       .sort((a, b) => Math.abs(a.currentBalance || 0) - Math.abs(b.currentBalance || 0))
       .slice(0, 10);
+  } else if (smartFilter === "range") {
+    // نطاق محدد (من - إلى)
+    const min = minBalance ? parseFloat(minBalance) * 100 : -Infinity;
+    const max = maxBalance ? parseFloat(maxBalance) * 100 : Infinity;
+    filteredBalances = filteredBalances.filter(c => {
+      const balance = Math.abs(c.currentBalance || 0);
+      return balance >= min && balance <= max;
+    });
   } else if (smartFilter === "suspicious") {
     // حالات مشبوهة: رصيد سالب كبير أو حركة غير منطقية
     filteredBalances = filteredBalances.filter(c => {
@@ -154,6 +162,64 @@ export default function CustomerBalances() {
     // لديه رصيد افتتاحي (رصيد سابق ≠ 0)
     filteredBalances = filteredBalances.filter(c => 
       (c.previousBalance || 0) !== 0
+    );
+  } else if (smartFilter === "debitOnly") {
+    // حركة مدين فقط (لا يوجد دائن)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.debit || 0) > 0 && (c.credit || 0) === 0
+    );
+  } else if (smartFilter === "creditOnly") {
+    // حركة دائن فقط (لا يوجد مدين)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.credit || 0) > 0 && (c.debit || 0) === 0
+    );
+  } else if (smartFilter === "bothMovements") {
+    // حركة مدين ودائن معاً
+    filteredBalances = filteredBalances.filter(c => 
+      (c.debit || 0) > 0 && (c.credit || 0) > 0
+    );
+  } else if (smartFilter === "highDebit") {
+    // مدين كبير (أكثر من 10,000 ر.س)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.debit || 0) > 1000000
+    );
+  } else if (smartFilter === "highCredit") {
+    // دائن كبير (أكثر من 10,000 ر.س)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.credit || 0) > 1000000
+    );
+  } else if (smartFilter === "balanceIncreased") {
+    // الرصيد زاد (الرصيد الحالي > الرصيد السابق)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.currentBalance || 0) > (c.previousBalance || 0)
+    );
+  } else if (smartFilter === "balanceDecreased") {
+    // الرصيد نقص (الرصيد الحالي < الرصيد السابق)
+    filteredBalances = filteredBalances.filter(c => 
+      (c.currentBalance || 0) < (c.previousBalance || 0)
+    );
+  } else if (smartFilter === "debitMoreThanCredit") {
+    // المدين أكبر من الدائن
+    filteredBalances = filteredBalances.filter(c => 
+      (c.debit || 0) > (c.credit || 0) && (c.credit || 0) > 0
+    );
+  } else if (smartFilter === "creditMoreThanDebit") {
+    // الدائن أكبر من المدين
+    filteredBalances = filteredBalances.filter(c => 
+      (c.credit || 0) > (c.debit || 0) && (c.debit || 0) > 0
+    );
+  } else if (smartFilter === "roundNumbers") {
+    // أرقام مدورة (مشبوه - قد يكون تقدير)
+    filteredBalances = filteredBalances.filter(c => {
+      const balance = Math.abs(c.currentBalance || 0);
+      // رقم مدور إذا كان من مضاعفات 100,000 هللة (1,000 ر.س)
+      return balance > 0 && balance % 100000 === 0;
+    });
+  } else if (smartFilter === "exactMatch") {
+    // الرصيد السابق = الرصيد الحالي (لا توجد حركة فعلية)
+    filteredBalances = filteredBalances.filter(c => 
+      Math.abs((c.currentBalance || 0) - (c.previousBalance || 0)) <= 1 && 
+      ((c.debit || 0) > 0 || (c.credit || 0) > 0)
     );
   }
 
@@ -344,6 +410,30 @@ export default function CustomerBalances() {
       fileName = "أكبر_10_عملاء";
     } else if (smartFilter === "bottom10") {
       fileName = "أصغر_10_عملاء";
+    } else if (smartFilter === "range") {
+      fileName = `نطاق_من_${minBalance || 0}_إلى_${maxBalance || "∞"}`;
+    } else if (smartFilter === "debitOnly") {
+      fileName = "حركة_مدين_فقط";
+    } else if (smartFilter === "creditOnly") {
+      fileName = "حركة_دائن_فقط";
+    } else if (smartFilter === "bothMovements") {
+      fileName = "حركة_مدين_ودائن";
+    } else if (smartFilter === "highDebit") {
+      fileName = "مدين_كبير";
+    } else if (smartFilter === "highCredit") {
+      fileName = "دائن_كبير";
+    } else if (smartFilter === "balanceIncreased") {
+      fileName = "الرصيد_زاد";
+    } else if (smartFilter === "balanceDecreased") {
+      fileName = "الرصيد_نقص";
+    } else if (smartFilter === "debitMoreThanCredit") {
+      fileName = "المدين_أكبر_من_الدائن";
+    } else if (smartFilter === "creditMoreThanDebit") {
+      fileName = "الدائن_أكبر_من_المدين";
+    } else if (smartFilter === "roundNumbers") {
+      fileName = "أرقام_مدورة_مشبوهة";
+    } else if (smartFilter === "exactMatch") {
+      fileName = "رصيد_سابق_يساوي_حالي";
     }
     
     const exportData = displayBalances.map(b => ({
@@ -567,12 +657,13 @@ export default function CustomerBalances() {
             </Button>
 
             <Button
-              onClick={handleExportExcel}
+              onClick={handleExportFilteredExcel}
               variant="outline"
               className="border-[#00ff88]/30"
+              disabled={displayBalances.length === 0}
             >
               <Download className="ml-2 h-4 w-4" />
-              تصدير Excel
+              تصدير Excel ({displayBalances.length})
             </Button>
           </div>
 
@@ -714,16 +805,74 @@ export default function CustomerBalances() {
                       </SelectItem>
                       <SelectItem value="hasOpening">لديه رصيد سابق</SelectItem>
                       <SelectItem value="zeroOpening">رصيد سابق صفر</SelectItem>
+                      <SelectItem value="roundNumbers">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                          أرقام مدورة (مشبوه)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="exactMatch">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                          رصيد سابق = حالي مع حركة
+                        </div>
+                      </SelectItem>
+                      
+                      {/* فلاتر الحركة */}
+                      <SelectItem value="debitOnly">حركة مدين فقط</SelectItem>
+                      <SelectItem value="creditOnly">حركة دائن فقط</SelectItem>
+                      <SelectItem value="bothMovements">حركة مدين ودائن</SelectItem>
+                      <SelectItem value="highDebit">مدين كبير (+10K)</SelectItem>
+                      <SelectItem value="highCredit">دائن كبير (+10K)</SelectItem>
+                      <SelectItem value="debitMoreThanCredit">المدين أكبر من الدائن</SelectItem>
+                      <SelectItem value="creditMoreThanDebit">الدائن أكبر من المدين</SelectItem>
+                      
+                      {/* فلاتر التغيير */}
+                      <SelectItem value="balanceIncreased">الرصيد زاد</SelectItem>
+                      <SelectItem value="balanceDecreased">الرصيد نقص</SelectItem>
                       
                       {/* فلاتر عادية */}
                       <SelectItem value="zero">رصيد صفر</SelectItem>
                       <SelectItem value="debit">مدينون فقط</SelectItem>
                       <SelectItem value="credit">دائنون فقط</SelectItem>
+                      <SelectItem value="range">نطاق محدد (من - إلى)</SelectItem>
                       <SelectItem value="top10">أكبر 10 عملاء</SelectItem>
                       <SelectItem value="bottom10">أصغر 10 عملاء</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* حقول النطاق المحدد */}
+                {smartFilter === "range" && (
+                  <>
+                    <div>
+                      <Label htmlFor="min-balance">من (ر.س)</Label>
+                      <Input
+                        id="min-balance"
+                        type="number"
+                        value={minBalance}
+                        onChange={(e) => setMinBalance(e.target.value)}
+                        placeholder="0"
+                        className="glass"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="max-balance">إلى (ر.س)</Label>
+                      <Input
+                        id="max-balance"
+                        type="number"
+                        value={maxBalance}
+                        onChange={(e) => setMaxBalance(e.target.value)}
+                        placeholder="∞"
+                        className="glass"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* الأزرار */}
+              <div className={`${smartFilter === "range" ? "md:col-span-2" : ""}`}>
                 
                 {/* أزرار الإجراءات */}
                 <div className="flex items-end gap-2">
@@ -798,6 +947,36 @@ export default function CustomerBalances() {
                 {smartFilter === "suspicious" && displayBalances.length > 0 && (
                   <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded">
                     🚨 {displayBalances.length} حالة مشبوهة - رصيد سالب كبير أو حركة غير طبيعية
+                  </div>
+                )}
+                {smartFilter === "roundNumbers" && displayBalances.length > 0 && (
+                  <div className="text-xs text-yellow-400 bg-yellow-500/10 p-2 rounded">
+                    ⚠️ {displayBalances.length} عميل بأرقام مدورة (مضاعفات 1,000 ر.س) - قد تكون تقديرات وليست أرقام فعلية
+                  </div>
+                )}
+                {smartFilter === "exactMatch" && displayBalances.length > 0 && (
+                  <div className="text-xs text-yellow-400 bg-yellow-500/10 p-2 rounded">
+                    ⚠️ {displayBalances.length} عميل الرصيد السابق = الحالي رغم وجود حركة - قد يكون خطأ في الإدخال
+                  </div>
+                )}
+                {smartFilter === "debitOnly" && displayBalances.length > 0 && (
+                  <div className="text-xs text-blue-400 bg-blue-500/10 p-2 rounded">
+                    📊 {displayBalances.length} عميل لديهم حركة مدين فقط (لم يدفعوا شيء)
+                  </div>
+                )}
+                {smartFilter === "creditOnly" && displayBalances.length > 0 && (
+                  <div className="text-xs text-green-400 bg-green-500/10 p-2 rounded">
+                    💰 {displayBalances.length} عميل لديهم حركة دائن فقط (دفعوا بدون مشتريات جديدة)
+                  </div>
+                )}
+                {smartFilter === "balanceIncreased" && displayBalances.length > 0 && (
+                  <div className="text-xs text-red-400 bg-red-500/10 p-2 rounded">
+                    📈 {displayBalances.length} عميل رصيدهم زاد (ديونهم زادت)
+                  </div>
+                )}
+                {smartFilter === "balanceDecreased" && displayBalances.length > 0 && (
+                  <div className="text-xs text-green-400 bg-green-500/10 p-2 rounded">
+                    📉 {displayBalances.length} عميل رصيدهم نقص (دفعوا)
                   </div>
                 )}
                 {smartFilter === "openingMatchesDebit" && displayBalances.length === 0 && (
