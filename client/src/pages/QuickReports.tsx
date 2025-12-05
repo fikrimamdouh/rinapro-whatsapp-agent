@@ -44,6 +44,12 @@ export default function QuickReports() {
       const debit = c.debit || 0;
       return previousBalance !== 0 && credit > 0 && debit === 0;
     }).length || 0,
+    openingWithDebitNoCredit: customerBalances?.filter(c => {
+      const previousBalance = c.previousBalance || 0;
+      const debit = c.debit || 0;
+      const credit = c.credit || 0;
+      return previousBalance !== 0 && debit > 0 && credit === 0;
+    }).length || 0,
     balanceMismatch: customerBalances?.filter(c => {
       const expectedBalance = (c.previousBalance || 0) + (c.debit || 0) - (c.credit || 0);
       const actualBalance = c.currentBalance || 0;
@@ -139,6 +145,21 @@ export default function QuickReports() {
         const credit = c.credit || 0;
         const debit = c.debit || 0;
         return previousBalance !== 0 && credit > 0 && debit === 0;
+      }) || [],
+    },
+    {
+      id: "openingWithDebitNoCredit",
+      title: "🚨 رصيد سابق + مدين بدون دائن",
+      description: "عملاء اشتروا لكن لم يدفعوا شيء (يحتاجون متابعة)",
+      count: stats.openingWithDebitNoCredit,
+      color: "red",
+      icon: AlertTriangle,
+      severity: "critical",
+      getData: () => customerBalances?.filter(c => {
+        const previousBalance = c.previousBalance || 0;
+        const debit = c.debit || 0;
+        const credit = c.credit || 0;
+        return previousBalance !== 0 && debit > 0 && credit === 0;
       }) || [],
     },
     {
@@ -320,7 +341,7 @@ export default function QuickReports() {
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-red-400">
-                  {stats.openingMatchesDebit + stats.openingWithMovementToZero + stats.openingWithCreditNoDebit}
+                  {stats.openingMatchesDebit + stats.openingWithMovementToZero + stats.openingWithCreditNoDebit + stats.openingWithDebitNoCredit}
                 </div>
                 <div className="text-sm text-muted-foreground">حالات حرجة</div>
               </div>
