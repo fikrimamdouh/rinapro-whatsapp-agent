@@ -289,7 +289,32 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          {/* التقارير */}
+          {/* التقارير السريعة */}
+          <Link href="/quick-reports">
+            <Card className="glass hover:glass-strong transition-all cursor-pointer h-full border-green-500/30">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-green-500/20">
+                    <MessageSquare className="h-6 w-6 text-green-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      التقارير السريعة
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">جديد</span>
+                    </CardTitle>
+                    <CardDescription>إرسال فوري للواتساب</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  تقارير جاهزة بضغطة زر - إرسال مباشر للجروب
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* التقارير المالية */}
           <Link href="/reports">
             <Card className="glass hover:glass-strong transition-all cursor-pointer h-full">
               <CardHeader>
@@ -298,8 +323,8 @@ export default function Dashboard() {
                     <TrendingUp className="h-6 w-6 neon-green" />
                   </div>
                   <div>
-                    <CardTitle>التقارير اليومية</CardTitle>
-                    <CardDescription>تقارير الحركة</CardDescription>
+                    <CardTitle>التقارير المالية</CardTitle>
+                    <CardDescription>تقارير تفصيلية</CardDescription>
                   </div>
                 </div>
               </CardHeader>

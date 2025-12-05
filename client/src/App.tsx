@@ -18,6 +18,7 @@ import CustomerBalances from "./pages/CustomerBalances";
 import AccountBalances from "./pages/AccountBalances";
 import Inventory from "./pages/Inventory";
 import Reports from "./pages/Reports";
+import QuickReports from "./pages/QuickReports";
 import Sales from "./pages/Sales";
 import Purchases from "./pages/Purchases";
 import Maintenance from "./pages/Maintenance";
@@ -48,6 +49,7 @@ function Router() {
       <Route path={"/trial-balance"} component={TrialBalance} />
       <Route path={"/inventory"} component={Inventory} />
       <Route path={"/reports"} component={Reports} />
+      <Route path={"/quick-reports"} component={QuickReports} />
       <Route path={"/sales"} component={Sales} />
       <Route path={"/purchases"} component={Purchases} />
       <Route path={"/maintenance"} component={Maintenance} />
