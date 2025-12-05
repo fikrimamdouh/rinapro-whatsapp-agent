@@ -96,6 +96,15 @@ export default function CustomerBalances() {
       // كان له رصيد سابق + حدثت حركة + الرصيد النهائي صفر
       return previousBalance !== 0 && hasMovement && Math.abs(currentBalance) <= 1;
     });
+  } else if (smartFilter === "openingWithCreditNoDebit") {
+    // رصيد أول المدة + حركة دائن + لا توجد حركة مدين (مشبوه!)
+    filteredBalances = filteredBalances.filter(c => {
+      const previousBalance = c.previousBalance || 0;
+      const credit = c.credit || 0;
+      const debit = c.debit || 0;
+      // كان له رصيد سابق + يوجد دائن + لا يوجد مدين
+      return previousBalance !== 0 && credit > 0 && debit === 0;
+    });
   } else if (smartFilter === "zero") {
     // رصيد صفر
     filteredBalances = filteredBalances.filter(c => Math.abs(c.currentBalance || 0) <= 1);
@@ -390,6 +399,8 @@ export default function CustomerBalances() {
       fileName = "رصيد_سابق_يساوي_مدين";
     } else if (smartFilter === "openingWithMovementToZero") {
       fileName = "رصيد_وحركة_يساوي_صفر";
+    } else if (smartFilter === "openingWithCreditNoDebit") {
+      fileName = "رصيد_سابق_ودائن_بدون_مدين";
     } else if (smartFilter === "balanceMismatch") {
       fileName = "أخطاء_حسابية";
     } else if (smartFilter === "negativeBalance") {
@@ -527,6 +538,7 @@ export default function CustomerBalances() {
     // عنوان حسب الفلتر
     if (smartFilter === "openingMatchesDebit") message += "🚨 رصيد سابق = مدين:\n\n";
     else if (smartFilter === "openingWithMovementToZero") message += "🚨 رصيد + حركة = صفر:\n\n";
+    else if (smartFilter === "openingWithCreditNoDebit") message += "🚨 رصيد سابق + دائن بدون مدين:\n\n";
     else if (smartFilter === "balanceMismatch") message += "⚠️ أخطاء حسابية:\n\n";
     else if (smartFilter === "negativeBalance") message += "📉 عملاء دائنون:\n\n";
     else if (smartFilter === "zero") message += "العملاء برصيد صفر:\n\n";
@@ -658,6 +670,13 @@ export default function CustomerBalances() {
               return previousBalance !== 0 && hasMovement && Math.abs(currentBalance) <= 1;
             }).length;
             
+            const openingWithCreditNoDebitCount = customerBalances.filter(c => {
+              const previousBalance = c.previousBalance || 0;
+              const credit = c.credit || 0;
+              const debit = c.debit || 0;
+              return previousBalance !== 0 && credit > 0 && debit === 0;
+            }).length;
+            
             const balanceMismatchCount = customerBalances.filter(c => {
               const expectedBalance = (c.previousBalance || 0) + (c.debit || 0) - (c.credit || 0);
               const actualBalance = c.currentBalance || 0;
@@ -666,7 +685,7 @@ export default function CustomerBalances() {
             
             const negativeBalanceCount = customerBalances.filter(c => (c.currentBalance || 0) < 0).length;
             
-            if (openingMatchesDebitCount > 0 || openingWithMovementToZeroCount > 0 || balanceMismatchCount > 0 || negativeBalanceCount > 0) {
+            if (openingMatchesDebitCount > 0 || openingWithMovementToZeroCount > 0 || openingWithCreditNoDebitCount > 0 || balanceMismatchCount > 0 || negativeBalanceCount > 0) {
               return (
                 <Card className="glass-strong border-red-500/30 bg-red-500/5 mb-4">
                   <CardContent className="p-4">
@@ -685,6 +704,12 @@ export default function CustomerBalances() {
                         <div className="bg-red-500/10 p-3 rounded border border-red-500/20 cursor-pointer hover:bg-red-500/20" onClick={() => setSmartFilter("openingWithMovementToZero")}>
                           <div className="text-red-400 font-semibold">{openingWithMovementToZeroCount} عميل</div>
                           <div className="text-red-300 text-xs">رصيد + حركة = صفر</div>
+                        </div>
+                      )}
+                      {openingWithCreditNoDebitCount > 0 && (
+                        <div className="bg-red-500/10 p-3 rounded border border-red-500/20 cursor-pointer hover:bg-red-500/20" onClick={() => setSmartFilter("openingWithCreditNoDebit")}>
+                          <div className="text-red-400 font-semibold">{openingWithCreditNoDebitCount} عميل</div>
+                          <div className="text-red-300 text-xs">رصيد + دائن بدون مدين</div>
                         </div>
                       )}
                       {balanceMismatchCount > 0 && (
@@ -747,6 +772,12 @@ export default function CustomerBalances() {
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-red-600 animate-pulse" />
                           <span className="font-bold">رصيد + حركة = صفر</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="openingWithCreditNoDebit">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 animate-pulse" />
+                          <span className="font-bold">رصيد سابق + دائن بدون مدين</span>
                         </div>
                       </SelectItem>
                       <SelectItem value="suspicious">
@@ -898,6 +929,13 @@ export default function CustomerBalances() {
                     🚨 تحذير خطير: {displayBalances.length} عميل كان لديهم رصيد سابق وحدثت حركة لكن الرصيد النهائي = صفر!
                     <br />
                     <span className="text-red-400 font-normal">هذا مشبوه جداً - قد يكون تلاعب أو حذف متعمد للأرصدة</span>
+                  </div>
+                )}
+                {smartFilter === "openingWithCreditNoDebit" && displayBalances.length > 0 && (
+                  <div className="text-xs text-red-500 bg-red-500/20 p-3 rounded border border-red-500/30 font-semibold">
+                    🚨 تحذير خطير: {displayBalances.length} عميل كان لديهم رصيد سابق + دفعوا (دائن) لكن بدون مشتريات (مدين)!
+                    <br />
+                    <span className="text-red-400 font-normal">هذا غير منطقي - كيف يدفع العميل بدون أن يشتري؟ قد يكون خطأ في الإدخال أو تلاعب</span>
                   </div>
                 )}
                 {smartFilter === "balanceMismatch" && displayBalances.length > 0 && (

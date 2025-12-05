@@ -38,6 +38,12 @@ export default function QuickReports() {
       const currentBalance = c.currentBalance || 0;
       return previousBalance !== 0 && hasMovement && Math.abs(currentBalance) <= 1;
     }).length || 0,
+    openingWithCreditNoDebit: customerBalances?.filter(c => {
+      const previousBalance = c.previousBalance || 0;
+      const credit = c.credit || 0;
+      const debit = c.debit || 0;
+      return previousBalance !== 0 && credit > 0 && debit === 0;
+    }).length || 0,
     balanceMismatch: customerBalances?.filter(c => {
       const expectedBalance = (c.previousBalance || 0) + (c.debit || 0) - (c.credit || 0);
       const actualBalance = c.currentBalance || 0;
@@ -118,6 +124,21 @@ export default function QuickReports() {
         const hasMovement = (c.debit || 0) !== 0 || (c.credit || 0) !== 0;
         const currentBalance = c.currentBalance || 0;
         return previousBalance !== 0 && hasMovement && Math.abs(currentBalance) <= 1;
+      }) || [],
+    },
+    {
+      id: "openingWithCreditNoDebit",
+      title: "🚨 رصيد سابق + دائن بدون مدين",
+      description: "عملاء دفعوا بدون مشتريات (غير منطقي)",
+      count: stats.openingWithCreditNoDebit,
+      color: "red",
+      icon: AlertTriangle,
+      severity: "critical",
+      getData: () => customerBalances?.filter(c => {
+        const previousBalance = c.previousBalance || 0;
+        const credit = c.credit || 0;
+        const debit = c.debit || 0;
+        return previousBalance !== 0 && credit > 0 && debit === 0;
       }) || [],
     },
     {
@@ -299,7 +320,7 @@ export default function QuickReports() {
             <CardContent className="p-4">
               <div className="text-center">
                 <div className="text-3xl font-bold text-red-400">
-                  {stats.openingMatchesDebit + stats.openingWithMovementToZero}
+                  {stats.openingMatchesDebit + stats.openingWithMovementToZero + stats.openingWithCreditNoDebit}
                 </div>
                 <div className="text-sm text-muted-foreground">حالات حرجة</div>
               </div>
