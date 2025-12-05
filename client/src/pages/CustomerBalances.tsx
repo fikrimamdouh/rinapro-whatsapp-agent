@@ -59,6 +59,9 @@ export default function CustomerBalances() {
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [smartFilter, setSmartFilter] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [minBalance, setMinBalance] = useState<string>("");
+  const [maxBalance, setMaxBalance] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const utils = trpc.useUtils();
