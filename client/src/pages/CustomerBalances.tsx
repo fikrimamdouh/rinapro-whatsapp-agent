@@ -713,38 +713,55 @@ export default function CustomerBalances() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayBalances.map((balance) => (
-                      <TableRow key={balance.id} className="border-[#00ff88]/10 hover:bg-[#00ff88]/5">
-                        <TableCell className="font-mono">{balance.customerCode}</TableCell>
-                        <TableCell className="font-semibold">{balance.customerName}</TableCell>
-                        <TableCell className={getBalanceClass(balance.previousBalance || 0)}>
-                          {formatAmount(balance.previousBalance || 0)}
-                        </TableCell>
-                        <TableCell className="text-red-500 font-medium">
-                          {formatAmount(balance.debit || 0)}
-                        </TableCell>
-                        <TableCell className="text-green-500 font-medium">
-                          {formatAmount(balance.credit || 0)}
-                        </TableCell>
-                        <TableCell className={getBalanceClass(balance.currentBalance || 0)}>
-                          {formatAmount(balance.currentBalance || 0)}
-                          {(balance.currentBalance || 0) > 0 && <span className="text-xs mr-1">(مدين)</span>}
-                          {(balance.currentBalance || 0) < 0 && <span className="text-xs mr-1">(دائن)</span>}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleQuickSend(balance)}
-                            className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                            disabled={!balance.customerPhone}
-                            title={balance.customerPhone ? "إرسال رسالة واتساب" : "لا يوجد رقم هاتف"}
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {displayBalances.map((balance) => {
+                      const currentBalance = balance.currentBalance || 0;
+                      const isNegative = currentBalance < 0;
+                      
+                      return (
+                        <TableRow 
+                          key={balance.id} 
+                          className={`border-[#00ff88]/10 hover:bg-[#00ff88]/5 ${isNegative ? 'bg-red-500/5' : ''}`}
+                        >
+                          <TableCell className="font-mono">{balance.customerCode}</TableCell>
+                          <TableCell className="font-semibold">
+                            <div className="flex items-center gap-2">
+                              {isNegative && (
+                                <AlertTriangle className="h-4 w-4 text-red-500" title="رصيد سالب - يحتاج متابعة" />
+                              )}
+                              {balance.customerName}
+                            </div>
+                          </TableCell>
+                          <TableCell className={getBalanceClass(balance.previousBalance || 0)}>
+                            {formatAmount(balance.previousBalance || 0)}
+                          </TableCell>
+                          <TableCell className="text-red-500 font-medium">
+                            {formatAmount(balance.debit || 0)}
+                          </TableCell>
+                          <TableCell className="text-green-500 font-medium">
+                            {formatAmount(balance.credit || 0)}
+                          </TableCell>
+                          <TableCell className={getBalanceClass(currentBalance)}>
+                            <div className="flex items-center gap-2">
+                              {formatAmount(currentBalance)}
+                              {currentBalance > 0 && <span className="text-xs">(مدين)</span>}
+                              {isNegative && <span className="text-xs">(دائن)</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleQuickSend(balance)}
+                              className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                              disabled={!balance.customerPhone}
+                              title={balance.customerPhone ? "إرسال رسالة واتساب" : "لا يوجد رقم هاتف"}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

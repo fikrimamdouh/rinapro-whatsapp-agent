@@ -17,6 +17,8 @@ import {
   RefreshCw,
   Send,
   Filter,
+  AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -378,27 +380,40 @@ export default function Customers() {
                   </TableHeader>
                   <TableBody>
                     {displayCustomers.map((customer) => (
-                      <TableRow key={customer.id}>
+                      <TableRow key={customer.id} className={customer.balance < 0 ? "bg-red-500/5" : ""}>
                         <TableCell className="font-mono text-sm">{customer.customerId}</TableCell>
-                        <TableCell className="font-medium">{customer.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {customer.balance < 0 && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" title="رصيد سالب - يحتاج متابعة" />
+                            )}
+                            {customer.name}
+                          </div>
+                        </TableCell>
                         <TableCell>{customer.phone || "-"}</TableCell>
                         <TableCell className="text-purple-500">{formatCurrency(customer.previousBalance || 0)}</TableCell>
                         <TableCell className="text-blue-500">{formatCurrency(customer.debit || 0)}</TableCell>
                         <TableCell className="text-orange-500">{formatCurrency(customer.credit || 0)}</TableCell>
                         <TableCell className={customer.balance < 0 ? "text-red-500 font-bold" : "text-green-500 font-bold"}>
-                          {formatCurrency(customer.balance)}
+                          <div className="flex items-center gap-2">
+                            {formatCurrency(customer.balance)}
+                            {customer.balance < 0 && <span className="text-xs">(دائن)</span>}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          {customer.phone && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleQuickSend(customer)}
-                              className="border-green-500/30 hover:bg-green-500/10"
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <div className="flex gap-2">
+                            {customer.phone && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleQuickSend(customer)}
+                                className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                                title="إرسال رسالة واتساب"
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
